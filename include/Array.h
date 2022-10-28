@@ -8,6 +8,8 @@ public:
     Array(unsigned int size);
     Array(const Array &otherArray);
     /////////////
-    typedef void (*callback)(T value, unsigned int index, Array<T> *thisArray);
-    void forEach(callback c);
+    typedef void (*callbackv)(T value, unsigned int index, Array<T> *thisArray);
+    typedef bool (*callbackb)(T value, unsigned int index, Array<T> *thisArray);
+    void forEach(callbackv cv);
+    bool some(callbackb cb);
 };
