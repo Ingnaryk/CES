@@ -1,21 +1,34 @@
 #2020-10-29
 
-src=$(wildcard ./*.cpp ./src/*.cpp)
-obj=$(patsubst %.cpp,%.o,$(src))
-
-example:$(obj)
-	g++ -g -o $@ $^
-
-%.o:%.cpp
-	g++ -g -c $< -I./include -o $@
-
 .PHONY:clean
 
-clean:
-	del *.o
-	del src\\*.o
-	del example.exe
+##
+SRC_DIR=src
+OBJ_DIR=obj
+MAIN_DIR=main
+INC_DIR=inc
 
-test:
-	@echo $(src)
-	@echo $(obj)
+src=$(wildcard $(SRC_DIR)/*.cpp)
+src_obj=$(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(src))
+main=$(MAIN_DIR)/example.cpp
+main_obj=$(OBJ_DIR)/example.o
+target=$(MAIN_DIR)/example.exe
+all_obj=$(src_obj) $(main_obj)
+
+##
+CFLAG=-std=c++20
+
+##
+$(target):$(all_obj)
+	g++ -g $^ -o $@
+
+$(main_obj):$(main) $(INC_DIR)/ArrayLike.h
+	gcc -g -c $< -o $@ $(CFLAG)
+
+$(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp $(INC_DIR)/%.h
+	gcc -g -c $< -o $@ $(CFLAG)
+
+##
+clean:
+	del $(OBJ_DIR)\\*.o
+	del $(MAIN_DIR)\\example.exe
