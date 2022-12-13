@@ -22,7 +22,7 @@ CFLAG=-std=c++20
 $(target):$(all_obj)
 	g++ -g $^ -o $@
 
-$(main_obj):$(main) $(INC_DIR)/ArrayLike.h
+$(main_obj):$(main) $(INC_DIR)/CArray.h
 	gcc -g -c $< -o $@ $(CFLAG)
 
 $(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp $(INC_DIR)/%.h

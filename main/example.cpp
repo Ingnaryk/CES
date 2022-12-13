@@ -1,171 +1,158 @@
-#include "../inc/ArrayLike.h"
-#include "../inc/Array.h"
-#include "../inc/Object.h"
-#include <time.h>
+#include "../inc/CArray.h"
+#include "../inc/JSArray.h"
+#include "../inc/Async.h"
+#include <chrono>
+#include <random>
 using namespace std;
 
-/* Using C++ standard to implement major of ES6 standard features
-** While coding these codes I'v learnt new C++(11~20) featrues like std::variant, std::initializer_list,
-** std::fucntion, std::optional, remove_pointer, variadic templates and so on.
+/* implement part of ECMAScript6.0 features by C++
+** on the one hand, to absorb modern grammer skills and thoughts
+** on the other hand, to learn new C++(11~20) featrues like std::variant, std::initializer_list, std::fucntion, std::optional, remove_pointer, variadic templates and so on.
 **
-** Because of the strongly typed featre of C++,
-** I suppose that some functions like valueOf, Array.of, Array.from, etc can be substituted by the constructer.
-** The assignment between objects like Array is deep copy.
-** Type 'size_t' used to describe length of my array, which can hold more capacity than javascript
+** because of the strongly typed featre of C++,
+** The assignment between objects may be of deep copy.
 */
 
 template <typename T>
-void test(T &a)
+void test(T &arr)
 {
-     cout << "display a\n"
-          << a << endl;
+     cout << "display arr\n"
+          << arr << endl;
      //------------------------push
      int num = 13;
-     cout << "int num = 13, a.push(&num) returns " << a.push(&num) << ", and a is\n"
-          << a << endl;
+     cout << "int num = 13, arr.push(&num) returns " << arr.push(&num) << ", and arr is\n"
+          << arr << endl;
      //------------------------unshift
-     cout << "a.unshift(-6, 2147483648) returns " << a.unshift(-6, 2147483648) << ", and a is\n"
-          << a << endl;
+     cout << "arr.unshift(-6, 2147483648) returns " << arr.unshift(-6, 2147483648) << ", and arr is\n"
+          << arr << endl;
 
      //------------------------pop
-     cout << "a.pop() returns " << a.pop() << ", and a is\n"
-          << a << endl;
+     cout << "arr.pop() returns " << arr.pop() << ", and arr is\n"
+          << arr << endl;
      //------------------------shift
-     cout << "a.shift() returns " << a.shift() << ", and a is\n"
-          << a << endl;
+     cout << "arr.shift() returns " << arr.shift() << ", and arr is\n"
+          << arr << endl;
      //------------------------at
-     cout << "a.at(2) returns " << a.at(2) << ", and a.at(-1) returns " << a.at(-1) << endl;
+     cout << "arr.at(2) returns " << arr.at(2) << ", and arr.at(-1) returns " << arr.at(-1) << endl;
      //------------------------indexOf
-     cout << "a.indexOf(2147483648) returns " << a.indexOf(2147483648) << endl;
+     cout << "arr.indexOf(2147483648) returns " << arr.indexOf(2147483648) << endl;
      //------------------------lastIndexOf
-     cout << "a.lastIndexOf(2147483648) returns " << a.lastIndexOf(2147483648) << endl;
+     cout << "arr.lastIndexOf(2147483648) returns " << arr.lastIndexOf(2147483648) << endl;
      //------------------------incldues
-     cout << "'8 is the element of a' is " << a.includes(8) << endl;
+     cout << "'8 is the element of arr' is " << arr.includes(8) << endl;
 
      //------------------------join
-     cout << "a.join() is\n\n"
-          << a.join() << "\n\na.join(\" + \") is\n\n"
-          << a.join(" + ") << "\n"
+     cout << "arr.join() is\n\n"
+          << arr.join() << "\n\na.join(\" + \") is\n\n"
+          << arr.join(" + ") << "\n"
           << endl;
      //------------------------forEach & operator=
-     a = {1, 5, 3, 7, 8, 9};
-     cout << "a = {1, 5, 3, 7, 8, 9} and the square of each value is\n\n";
-     a.forEach([](Any value, ...)
-               { cout << get<int>(value) * get<int>(value) << " "; });
+     arr = {1, 5, 3, 7, 8, 9};
+     cout << "arr = {1, 5, 3, 7, 8, 9} and the square of each value is\n\n";
+     arr.forEach([](Any value)
+                 { cout << get<int>(value) * get<int>(value) << " "; });
      cout << "\n"
           << endl;
      //------------------------some
-     cout << "'a includes even number' is " << a.some([](Any value, ...)
-                                                      { return get<int>(value) % 2 == 0; })
+     cout << "'arr includes even number' is " << arr.some([](Any value)
+                                                          { return get<int>(value) % 2 == 0; })
           << endl;
      //------------------------every
-     cout << "'all the numbers in a are positive' is " << a.every([](Any value, ...)
-                                                                  { return get<int>(value) > 0; })
+     cout << "'all the numbers in arr are positive' is " << arr.every([](Any value)
+                                                                      { return get<int>(value) > 0; })
           << endl;
      //------------------------find
-     cout << "the first number in a which is larger than 5 is " << a.find([](Any value, ...)
-                                                                          { return get<int>(value) > 5; })
+     cout << "the first number in arr which is larger than 5 is " << arr.find([](Any value)
+                                                                              { return get<int>(value) > 5; })
           << endl;
      //------------------------findLast
-     cout << "the last number in a which is smaller than 9 is " << a.findLast([](Any value, ...)
-                                                                              { return get<int>(value) < 9; })
+     cout << "the last number in arr which is smaller than 9 is " << arr.findLast([](Any value)
+                                                                                  { return get<int>(value) < 9; })
           << endl;
      //------------------------findIndex
-     cout << "the index of first number in a which is larger than 5 is " << a.findIndex([](Any value, ...)
-                                                                                        { return get<int>(value) > 5; })
+     cout << "the index of first number in arr which is larger than 5 is " << arr.findIndex([](Any value)
+                                                                                            { return get<int>(value) > 5; })
           << endl;
      //------------------------findLastIndex
-     cout << "the index of last number in a which is smaller than 9 is " << a.findLastIndex([](Any value, ...)
-                                                                                            { return get<int>(value) < 9; })
+     cout << "the index of last number in arr which is smaller than 9 is " << arr.findLastIndex([](Any value)
+                                                                                                { return get<int>(value) < 9; })
           << endl;
      //------------------------reduce
-     cout << "the sum of numbers in a(with initial value 100) is " << a.reduce([](Any a, Any b, ...)
-                                                                               { return get<int>(a) + get<int>(b); },
-                                                                               100)
+     cout << "the sum of numbers in arr(with initial value 100) is " << arr.reduce([](Any arr, Any b)
+                                                                                   { return get<int>(arr) + get<int>(b); },
+                                                                                   100)
           << endl;
      //------------------------reduceRight
-     cout << "the product of numbers in a meanwhile adding their index(from right side) is " << a.reduceRight([](Any a, Any b, size_t crtIndex, ...)
-                                                                                                              { Any r = get<int>(a) * get<int>(b);
+     cout << "the product of numbers in arr meanwhile adding their index(from right side) is " << arr.reduceRight([](Any arr, Any b, size_t crtIndex)
+                                                                                                                  { Any r = get<int>(arr) * get<int>(b);
                                                                                                               return get<int>(r) += crtIndex; })
           << endl;
      //------------------------filter
-     cout << "the array that contains the numbers larger than 3 in a\n"
-          << a.filter([](Any value, ...)
-                      { return get<int>(value) > 3; })
+     cout << "the array that contains the numbers larger than 3 in arr\n"
+          << arr.filter([](Any value)
+                        { return get<int>(value) > 3; })
           << endl;
      //------------------------map
-     cout << "the array that equals each number in a multiplied by 0.3\n"
-          << a.map([](Any value, ...)
-                   { return (double)(get<int>(value) * 0.3); })
+     cout << "the array that equals each number in arr multiplied by 0.3\n"
+          << arr.map([](Any value)
+                     { return (double)(get<int>(value) * 0.3); })
           << endl;
      //------------------------concat
-     cout << "the array that euquals a concated with {\"str\", 0.5, false}\n"
-          << a.concat({"str", 0.5, false}) << endl;
+     cout << "the array that euquals arr concated with {\"str\", 0.5, false}\n"
+          << arr.concat({"str", 0.5, false}) << endl;
      //------------------------slice
-     cout << "the array that equals the slice of a within index [1, 4)\n"
-          << a.slice(1, 4) << endl;
+     cout << "the array that equals the slice of arr within index [1, 4)\n"
+          << arr.slice(1, 4) << endl;
      //------------------------splice
-     cout << "slice a from index 1, delete two elements and splice with {-1, -2, -3} returns\n"
-          << a.splice(1, 2, {-1, -2, -3})
-          << "\nand a is\n"
-          << a << endl;
+     cout << "slice arr from index 1, delete two elements and splice with {-1, -2, -3} returns\n"
+          << arr.splice(1, 2, {-1, -2, -3})
+          << "\nand arr is\n"
+          << arr << endl;
      //------------------------reverse
-     cout << "reverse a\n"
-          << a.reverse() << endl;
+     cout << "reverse arr\n"
+          << arr.reverse() << endl;
      //------------------------sort
-     cout << "sort a by default order\n"
-          << a.sort() << "\nand sort a by descending order\n"
-          << a.sort([](Any a, Any b)
-                    { return a > b ? -1 : 1; })
+     cout << "sort arr by default order\n"
+          << arr.sort() << "\nand sort arr by descending order\n"
+          << arr.sort([](Any arr, Any b)
+                      { return arr > b ? -1 : 1; })
           << endl;
      //------------------------copyWithin
-     cout << "copy the numbers in a within index [4, 6) to target index 0\n"
-          << a.copyWithin(0, 4, 6) << endl;
+     cout << "copy the numbers in arr within index [4, 6) to target index 0\n"
+          << arr.copyWithin(0, 4, 6) << endl;
      //------------------------fill
-     cout << "fill a with value 10 within index [0, 3)\n"
-          << a.fill(10, 0, 3) << endl;
+     cout << "fill arr with value 10 within index [0, 3)\n"
+          << arr.fill(10, 0, 3) << endl;
      //------------------------operator[]
-     a[9] = -5;
-     cout << "a[9] = -5, and now a is\n"
-          << a << endl;
+     arr[9] = -5;
+     cout << "arr[9] = -5, and now arr is\n"
+          << arr << endl;
 }
 
 int main()
 {
      cout << boolalpha;
-     //------------------------Object Test------------------------//
-     //------------------------operator[]
-     Object o;
-     o[3] = "string 7";
-     o["3"] = 7;
-     o["1"] = false;
-     o["string key"] = 10.2;
-     o[-3] = nullptr;
-     o["what"] = -9;
-     cout << o << endl;
-     //------------------------_delete
-     o._delete("inexistent key");
-     o._delete("what");
-     cout << o << endl;
-     //------------------------keys&values
-     cout << "keys of o\n"
-          << Object::keys(o) << endl;
-     cout << "values of o\n"
-          << Object::values(o) << endl;
-     /*//------------------------Array/ArrayLike<T> Test------------------------//
-     clock_t st = clock();
+     /*//------------------------JSArray/CArray<T> Test------------------------//
+     using milisecond = chrono::duration<double, milli>;
+     auto ct = chrono::steady_clock::now();
      {
-          Array a = {3.5, true, 2147483648, nullptr, "this is a string"};
-          test(a);
+          JSArray arr = {3.5, true, 2147483648, nullptr, "this is string"};
+          test(arr);
      }
-     clock_t t1 = clock() - st;
+     milisecond t1 = (chrono::steady_clock::now() - ct);
      cout << "----------------------------------------------------------" << endl;
-     st = clock();
+     ct = chrono::steady_clock::now();
      {
-          ArrayLike<Any> a = {3.5, true, 2147483648, nullptr, "this is a string"};
-          test(a);
+
+          CArray<Any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
+          test(arr);
      }
-     clock_t t2 = clock() - st;
+     milisecond t2 = (chrono::steady_clock::now() - ct);
      cout << "t1: " << t1 << ", t2: " << t2 << endl;*/
+     //------------------------async, await, Promise Test------------------------//
+     AsyncFunction f([&](Any data)
+                     { return Promise([&](ResExecutor res)
+                                      { this_thread::sleep_for(1000ms);
+                                      res("sizeof data is" + sizeof(data)); }) });
      return 0;
 }
