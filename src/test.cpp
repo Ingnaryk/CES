@@ -65,4 +65,4 @@ namespace test
         std::cout << "s.substr(1, 1) = "
                   << s.substr(1, 1) << std::endl;
     }
-}
+} // namespace test
