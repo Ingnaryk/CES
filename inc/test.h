@@ -5,7 +5,7 @@
 
 #include "../inc/Any.h"
 
-namespace Test
+namespace test
 {
     void testArray();
 
@@ -128,6 +128,6 @@ namespace Test
     void testAsync();
 
     void testString();
-} // namespace Test
+} // namespace test
 
 #endif // _TEST_H
