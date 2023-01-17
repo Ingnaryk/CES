@@ -27,4 +27,4 @@ overloaded(Ts...) -> overloaded<Ts...>;
 constexpr const char *boolean(bool &arg);
 std::ostream &operator<<(std::ostream &os, const Any &value);
 
-#endif //_ANY_H_
+#endif // _ANY_H_

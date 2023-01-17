@@ -1,62 +1,64 @@
-#ifndef _CARRAY_H_
-#define _CARRAY_H_
+#ifndef _RAWARRAY_H_
+#define _RAWARRAY_H_
 
 #include <memory>
+
 #include "Any.h"
 
 template <typename T>
-class CArray
+class RawArray
 {
+    //////////////////////////////////Utilities
     template <typename U>
     using CallbackF_Basic = std::variant<std::function<U()>,
                                          std::function<U(T)>,
                                          std::function<U(T, size_t)>,
-                                         std::function<U(T, size_t, CArray<T> &)>>;
+                                         std::function<U(T, size_t, RawArray<T> &)>>;
     template <typename U>
     using CallbackF_Reduce = std::variant<std::function<U(T, T)>,
                                           std::function<U(T, T, size_t)>,
-                                          std::function<U(T, T, size_t, CArray<T> &)>>;
+                                          std::function<U(T, T, size_t, RawArray<T> &)>>;
     template <typename newT>
-    std::function<newT(T, size_t, CArray<T> &)> convert_basic(const CallbackF_Basic<newT> &fn)
+    std::function<newT(T, size_t, RawArray<T> &)> convert_basic(const CallbackF_Basic<newT> &fn)
     {
-        std::function<newT(T, size_t, CArray<T> &)> f;
+        std::function<newT(T, size_t, RawArray<T> &)> f;
         switch (fn.index())
         {
         case 0:
-            f = [&fn](T, size_t, CArray<T> &)
+            f = [&fn](T, size_t, RawArray<T> &)
             { return std::get<0>(fn)(); };
             break;
         case 1:
-            f = [&fn](T value, size_t, CArray<T> &)
+            f = [&fn](T value, size_t, RawArray<T> &)
             { return std::get<1>(fn)(value); };
             break;
         case 2:
-            f = [&fn](T value, size_t index, CArray<T> &)
+            f = [&fn](T value, size_t index, RawArray<T> &)
             { return std::get<2>(fn)(value, index); };
             break;
         case 3:
-            f = [&fn](T value, size_t index, CArray<T> &thisArray)
+            f = [&fn](T value, size_t index, RawArray<T> &thisArray)
             { return std::get<3>(fn)(value, index, thisArray); };
             break;
         }
         return f;
     }
     template <typename newT>
-    std::function<newT(T, T, size_t, CArray<T> &)> convert_reduce(const CallbackF_Reduce<newT> &fn)
+    std::function<newT(T, T, size_t, RawArray<T> &)> convert_reduce(const CallbackF_Reduce<newT> &fn)
     {
-        std::function<newT(T, T, size_t, CArray<T> &)> f;
+        std::function<newT(T, T, size_t, RawArray<T> &)> f;
         switch (fn.index())
         {
         case 0:
-            f = [&fn](T value1, T value2, size_t, CArray<T> &)
+            f = [&fn](T value1, T value2, size_t, RawArray<T> &)
             { return std::get<0>(fn)(value1, value2); };
             break;
         case 1:
-            f = [&fn](T value1, T value2, size_t crtIndex, CArray<T> &)
+            f = [&fn](T value1, T value2, size_t crtIndex, RawArray<T> &)
             { return std::get<1>(fn)(value1, value2, crtIndex); };
             break;
         case 2:
-            f = [&fn](T value1, T value2, size_t crtIndex, CArray<T> &thisArray)
+            f = [&fn](T value1, T value2, size_t crtIndex, RawArray<T> &thisArray)
             { return std::get<2>(fn)(value1, value2, crtIndex, thisArray); };
             break;
         }
@@ -64,6 +66,7 @@ class CArray
     }
 
 private:
+    //////////////////////////////////Internal usage
     T *alloc(size_t n)
     {
         return static_cast<T *>(::operator new(n * sizeof(T)));
@@ -87,7 +90,7 @@ private:
         for (; _length > 0; _length--)
             destroy(data + _length - 1);
     }
-    void swap(CArray<T> &otherArray) noexcept
+    void swap(RawArray<T> &otherArray) noexcept
     {
         std::swap(capacity, otherArray.capacity);
         std::swap(*const_cast<size_t *>(&length), *const_cast<size_t *>(&otherArray.length));
@@ -101,77 +104,79 @@ private:
             size_t newCapacity = (capacity ? capacity * 2 : 1);
             T *newData = alloc(newCapacity);
             for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move_if_noexcept(data[i]));
+                construct(newData + i, std::move(data[i]));
             capacity = newCapacity;
             data = newData;
         }
         for (ptrdiff_t i = length; i > loc; i--)
-            construct(data + i, std::move_if_noexcept(data[i - 1]));
+            construct(data + i, std::move(data[i - 1]));
         construct(data + loc, element);
         *const_cast<size_t *>(&length) = length + 1;
     }
+    //////////////////////////////////Wrapped data
     size_t capacity{0};
     T *data{nullptr};
 
 public:
     //////////////////////////////////Variadic templates functions' end
     template <typename Arg>
+        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
     size_t push(const Arg &element)
     {
-        insertAt(length, std::move_if_noexcept(element));
+        insertAt(length, std::move(element));
         return length;
     }
     template <typename Arg>
+        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
     size_t unshift(const Arg &element)
     {
-        insertAt(0, std::move_if_noexcept(element));
+        insertAt(0, std::move(element));
         return length;
     }
-    //////////////////////////////////ES Properties
+    //////////////////////////////////ES Property
     const size_t length{0};
     //////////////////////////////////Constructor
-    CArray() noexcept = default;
-    explicit CArray(size_t size) : capacity{size}, data{alloc(capacity)}
+    explicit RawArray(size_t size) : capacity{size}, data{alloc(capacity)}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < size; _length++)
             construct(data + _length); // call T's default constructor
     }
-    CArray(T *otherData, size_t size) : capacity{size}, data{alloc(capacity)}
+    RawArray(T *otherData, size_t size) : capacity{size}, data{alloc(capacity)}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < size; _length++)
-            construct(data + _length, std::move_if_noexcept(otherData[_length]));
+            construct(data + _length, std::move(otherData[_length]));
     }
-    CArray(const std::initializer_list<T> &elements) : capacity{elements.size()}, data{alloc(capacity)}
+    RawArray(const std::initializer_list<T> &elements) : capacity{elements.size()}, data{alloc(capacity)}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (const auto &ele : elements)
-            construct(data + _length++, std::move_if_noexcept(ele));
+            construct(data + _length++, std::move(ele));
     }
-    CArray(const CArray<T> &otherArray) : capacity{otherArray.length}, data{alloc(capacity)}
+    RawArray(const RawArray<T> &otherArray) : capacity{otherArray.length}, data{alloc(capacity)}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < otherArray.length; _length++)
             construct(data + _length, otherArray.data[_length]); // call T's copy constructor
     }
-    CArray(CArray<T> &&rvArray) noexcept
+    RawArray(RawArray<T> &&rvArray) noexcept
     {
         swap(rvArray);
     }
-    //////////////////////////////////ES Functions
+    //////////////////////////////////ES Method
     template <typename Arg, typename... RestArgs>
     size_t push(const Arg &element, const RestArgs &...elements)
     {
-        push(std::move_if_noexcept(element));
-        push(std::move_if_noexcept(elements)...);
+        push(std::move(element));
+        push(std::move(elements)...);
         return length;
     }
     template <typename Arg, typename... RestArgs>
     size_t unshift(const Arg &element, const RestArgs &...elements)
     {
-        unshift(std::move_if_noexcept(elements)...);
-        unshift(std::move_if_noexcept(element));
+        unshift(std::move(elements)...);
+        unshift(std::move(element));
         return length;
     }
     Any pop()
@@ -184,7 +189,7 @@ public:
             size_t newCapacity = capacity / 2;
             T *newData = alloc(newCapacity);
             for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move_if_noexcept(data[i]));
+                construct(newData + i, std::move(data[i]));
             capacity = newCapacity;
             data = newData;
         }
@@ -202,13 +207,13 @@ public:
             size_t newCapacity = capacity / 2;
             T *newData = alloc(newCapacity);
             for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move_if_noexcept(data[i]));
+                construct(newData + i, std::move(data[i]));
             capacity = newCapacity;
             data = newData;
         }
         destroy(data + 0);
         for (size_t i = 0; i < length - 1; i++)
-            construct(data + i, std::move_if_noexcept(data[i + 1]));
+            construct(data + i, std::move(data[i + 1]));
         *const_cast<size_t *>(&length) = length - 1;
         return first;
     }
@@ -248,7 +253,7 @@ public:
         }
         return false;
     }
-    std::string join(const std::string &separator = ",") const
+    std::string join(const char *separator = ",") const
     {
         std::stringstream ss;
         for (size_t i = 0; i < length; i++)
@@ -330,8 +335,8 @@ public:
         auto f = convert_reduce<T>(callbackFn);
         ptrdiff_t crtIndex = 0;
         T accumulator;
-        if (_initialValue)
-            accumulator = _initialValue.value();
+        if (_initialValue.has_value())
+            accumulator = *_initialValue;
         else
         {
             accumulator = data[crtIndex];
@@ -348,8 +353,8 @@ public:
         auto f = convert_reduce<T>(callbackFn);
         ptrdiff_t crtIndex = length - 1;
         T accumulator;
-        if (_initialValue)
-            accumulator = _initialValue.value();
+        if (_initialValue.has_value())
+            accumulator = *_initialValue;
         else
         {
             accumulator = data[crtIndex];
@@ -359,10 +364,10 @@ public:
             accumulator = f(accumulator, data[i], i, *this);
         return accumulator;
     }
-    CArray<T> filter(const CallbackF_Basic<bool> &predicate)
+    RawArray<T> filter(const CallbackF_Basic<bool> &predicate)
     {
         auto f = convert_basic<bool>(predicate);
-        CArray<T> filterArray(0);
+        RawArray<T> filterArray(0);
         size_t filterLength = 0;
         for (size_t i = 0; i < length; i++)
         {
@@ -371,65 +376,62 @@ public:
         }
         return filterArray;
     }
-    CArray<Any> map(const CallbackF_Basic<Any> &mapFn)
+    RawArray<Any> map(const CallbackF_Basic<Any> &mapFn)
     {
         auto f = convert_basic<Any>(mapFn);
         Any *mapData = static_cast<Any *>(::operator new(length * sizeof(Any)));
         for (size_t i = 0; i < length; i++)
             ::new (mapData + i) Any(std::move(f(data[i], i, *this)));
-        CArray<Any> mapArray(mapData, length);
+        RawArray<Any> mapArray(mapData, length);
         return mapArray;
     }
-    CArray<T> concat(const CArray<T> &otherArray)
+    RawArray<T> concat(const RawArray<T> &otherArray)
     {
-        CArray<T> concatArray{*this};
+        RawArray<T> concatArray{*this};
         for (size_t i = 0; i < otherArray.length; i++)
             concatArray.push(otherArray.data[i]);
         return concatArray;
     }
-    CArray<T> slice(ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt) const
+    RawArray<T> slice(ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt) const
     {
-        ptrdiff_t end;
-        _end && (end = _end.value()) || (end = length - 1);
+        ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         (end < 0 && end > -length) && (end += length);
-        end >= length && (end = length - 1);
+        end > length && (end = length);
         if (start >= length || end <= start)
-            return CArray<T>(0);
-        CArray<T> sliceArray(0);
+            return RawArray<T>(0);
+        RawArray<T> sliceArray(0);
         for (size_t i = 0; i < end - start; i++)
             sliceArray.push(data[start + i]);
         return sliceArray;
     }
-    CArray<T> splice(ptrdiff_t start, std::optional<size_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
+    RawArray<T> splice(ptrdiff_t start, std::optional<size_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
     {
-        size_t deleteCount;
-        size_t restNum;
+        RawArray<T> spliceArray(0);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         if (start >= length)
-            return CArray<T>(0);
-        _deleteCount && (deleteCount = _deleteCount.value()) || (deleteCount = length - start);
+            return spliceArray;
+        size_t deleteCount = (_deleteCount.has_value() ? *_deleteCount : length - start);
         deleteCount > length - start && (deleteCount = length - start);
         deleteCount < 0 && (deleteCount = 0);
-        restNum = length - start - deleteCount;
-        CArray<T> deleteArray(0);
+        size_t restNum = length - start - deleteCount;
         if (deleteCount > 0)
         {
             T *deleteData = alloc(deleteCount);
             for (size_t i = 0; i < deleteCount; i++)
-                construct(deleteData + i, std::move_if_noexcept(data[start + i]));
-            deleteArray.capacity = deleteCount;
-            *const_cast<size_t *>(&deleteArray.length) = deleteCount;
-            deleteArray.data = deleteData;
+                construct(deleteData + i, std::move(data[start + i]));
+            spliceArray.capacity = deleteCount;
+            *const_cast<size_t *>(&spliceArray.length) = deleteCount;
+            spliceArray.data = deleteData;
             std::move(data + start + deleteCount, data + length, data + start);
             *const_cast<size_t *>(&length) = length - deleteCount;
         }
         size_t loc = 0;
         for (const auto &ele : newElements)
-            insertAt(start + loc++, std::move_if_noexcept(ele));
-        return deleteArray;
+            insertAt(start + loc++, std::move(ele));
+        return spliceArray;
     }
-    CArray<T> &reverse()
+    RawArray<T> &reverse()
     {
         for (size_t i = 0; i < length / 2; i++)
         {
@@ -439,22 +441,21 @@ public:
         }
         return *this;
     }
-    CArray<T> &sort(std::optional<const std::function<ptrdiff_t(T, T)>> _compareFn = std::nullopt)
+    RawArray<T> &sort(std::optional<const std::function<ptrdiff_t(T, T)>> _compareFn = std::nullopt)
     {
-        if (!_compareFn)
+        if (!_compareFn.has_value())
             std::sort(data, data + length, std::less<T>());
         else
         {
-            auto &compareFn = _compareFn.value();
+            auto &compareFn = *_compareFn;
             std::sort(data, data + length, [&compareFn](T a, T b)
                       { return compareFn(a, b) < 0; });
         }
         return *this;
     }
-    CArray<T> &copyWithin(ptrdiff_t target, ptrdiff_t start, std::optional<ptrdiff_t> _end = std::nullopt)
+    RawArray<T> &copyWithin(ptrdiff_t target, ptrdiff_t start, std::optional<ptrdiff_t> _end = std::nullopt)
     {
-        ptrdiff_t end;
-        _end && (end = _end.value()) || (end = length);
+        ptrdiff_t end = (_end.has_value() ? *_end : length);
         (target < 0 && target > -length) && (target += length) || target < 0 && (target = 0);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         (end < 0 && end > -length) && (end += length);
@@ -464,18 +465,17 @@ public:
         size_t dist = std::min(end - start, end - target);
         T *tmp = alloc(dist);
         for (size_t i = 0; i < dist; i++)
-            construct(tmp + i, std::move_if_noexcept(data[start + i]));
+            construct(tmp + i, std::move(data[start + i]));
         for (size_t i = 0; i < dist; i++)
         {
             destroy(data + target + i);
-            construct(data + target + i, std::move_if_noexcept(tmp[i]));
+            construct(data + target + i, std::move(tmp[i]));
         }
         return *this;
     }
-    CArray<T> &fill(const T &value, ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt)
+    RawArray<T> &fill(const T &value, ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt)
     {
-        ptrdiff_t end;
-        _end && (end = _end.value()) || (end = length);
+        ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         (end < 0 && end > -length) && (end += length);
         end > length && (end = length);
@@ -487,7 +487,7 @@ public:
         return *this;
     }
     //////////////////////////////////Operator
-    Any &operator[](size_t index)
+    T &operator[](size_t index)
     {
         if (index >= length)
         {
@@ -499,23 +499,23 @@ public:
             index = 0;
         return data[index];
     }
-    CArray<T> &operator=(const CArray<T> &newArray)
+    RawArray<T> &operator=(const RawArray<T> &newArray)
     {
         if (this != &newArray)
         {
-            CArray<T>(newArray.length).swap(*this);
+            RawArray<T>(newArray.length).swap(*this);
             std::copy(newArray.data, newArray.data + newArray.length, data);
         }
         return *this;
     }
-    CArray<T> &operator=(CArray<T> &&newArray)
+    RawArray<T> &operator=(RawArray<T> &&newArray)
     {
         capacity = std::__exchange(newArray.capacity, 0);
         *const_cast<size_t *>(&length) = std::__exchange(*const_cast<size_t *>(&newArray.length), 0);
         data = std::__exchange(newArray.data, nullptr);
         return *this;
     }
-    friend std::ostream &operator<<(std::ostream &os, const CArray<T> &array)
+    friend std::ostream &operator<<(std::ostream &os, const RawArray<T> &array)
     {
         T *data = array.data;
         if (array.length > 1)
@@ -529,11 +529,11 @@ public:
         return os;
     }
     //////////////////////////////////Desstructor
-    ~CArray() noexcept
+    ~RawArray() noexcept
     {
         clear();
         dealloc(data);
     }
 };
 
-#endif //_CARRAY_H_
+#endif // _RAWARRAY_H_

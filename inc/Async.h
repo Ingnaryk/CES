@@ -3,9 +3,10 @@
 
 #include <thread>
 #include <future>
+
 #include "Any.h"
 
-using ResExecutor = void(Any);
+static std::vector<std::jthread> threadPool;
 
 template <typename R, typename... Args>
 class AsyncFunction;
@@ -20,13 +21,11 @@ private:
     std::function<R(Args...)> func;
 
 public:
-    AsyncFunction(const std::function<R(Args...)> &func) : func(func) {}
+    AsyncFunction(std::function<R(Args...)> &&func) : func(std::move(func)) {}
     Promise<R> operator()(Args... args)
     {
-        std::promise<R> promise;
-        std::thread t([this]()
-                      { this->func(args...);
-                       promise.set_value });
+        std::future<R> future = std::async(this->func, args...);
+        return Promise<R>(std::move(future));
     }
 };
 
@@ -34,10 +33,15 @@ template <typename T>
 class Promise
 {
 private:
-    std::promise<T> m_p;
+    std::future<T> m_p;
 
 public:
-    Promise(std::promise<T> &&promise) : m_p(std::move(promise)) {}
+    Promise(std::future<T> future) : m_p(std::move(future)) {}
+    void then(const std::function<void(T)> &callback)
+    {
+        std::jthread t(callback, m_p.get());
+        threadPool.emplace_back(std::move(t));
+    }
 };
 
-#endif
+#endif // _ASYNC_H_

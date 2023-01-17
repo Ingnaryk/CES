@@ -10,6 +10,7 @@ INC_DIR=inc
 
 src=$(wildcard $(SRC_DIR)/*.cpp)
 src_obj=$(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(src))
+tpl_h=$(INC_DIR)/RawArray.h $(INC_DIR)/StdArray.h $(INC_DIR)/Async.h $(INC_DIR)/Test.h
 main=$(MAIN_DIR)/example.cpp
 main_obj=$(OBJ_DIR)/example.o
 target=$(MAIN_DIR)/example.exe
@@ -22,7 +23,7 @@ CFLAG=-std=c++20
 $(target):$(all_obj)
 	g++ -g $^ -o $@
 
-$(main_obj):$(main) $(INC_DIR)/CArray.h
+$(main_obj):$(main) $(tpl_h)
 	gcc -g -c $< -o $@ $(CFLAG)
 
 $(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp $(INC_DIR)/%.h
