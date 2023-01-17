@@ -27,8 +27,7 @@ public:
     string slice(ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt) const;
     string substring(ptrdiff_t start, std::optional<ptrdiff_t> _end = std::nullopt) const;
     string substr(ptrdiff_t from, std::optional<ptrdiff_t> _len = std::nullopt) const;
-    // slice, substring, substr
-    //////////////////////////////////Operator
+    //////////////////////////////////Operator, no operator[]!
     friend std::ostream &operator<<(std::ostream &os, const string &str);
 };
 
