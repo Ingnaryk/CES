@@ -1,11 +1,11 @@
 #include "../inc/RawArray.h"
 #include "../inc/StdArray.h"
 #include "../inc/Async.h"
-#include "../inc/string.h"
 #include "../inc/Timer.h"
-#include "../inc/Test.h"
+#include "../inc/string.h"
+#include "../inc/test.h"
 
-namespace Test
+namespace test
 {
     void testArray()
     {
