@@ -2,9 +2,11 @@
 #include "RawArray.h"
 #include "StdArray.h"
 #include "Async.h"
-#include "Timer.h"
+#include "timer.h"
 #include "string.h"
 #include "test.h"
+
+using namespace std::chrono_literals;
 
 namespace test
 {
@@ -126,21 +128,20 @@ namespace test
     void testArray()
     {
         {
-            Timer timer("StdArray Test");
+            timer t("StdArray Test");
             StdArray<Any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
-            test::testArray_spesific(arr);
+            testArray_spesific(arr);
         }
         std::cout << "----------------------------------------------------------" << std::endl;
         {
-            Timer timer("RawArray Test");
+            timer t("RawArray Test");
             RawArray<Any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
-            test::testArray_spesific(arr);
+            testArray_spesific(arr);
         }
     }
 
     void testAsync()
     {
-        using namespace std::chrono_literals;
         AsyncFunction<std::string, Any> f(
             [&](Any data)
             {
