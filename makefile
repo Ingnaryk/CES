@@ -1,35 +1,41 @@
 #2020-10-29
 
-.PHONY:clean
+##
+SRC_DIR  = src
+INC_DIR  = inc
+OBJ_DIR  = obj
+MAIN_DIR = main
+
+target   = example
+depends  = .depends
+sources  = $(wildcard $(SRC_DIR)/*.cpp $(MAIN_DIR)/$(target).cpp)
+objects  = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(notdir $(sources)))
+headers  = $(wildcard $(INC_DIR)/*.h)
 
 ##
-SRC_DIR=src
-OBJ_DIR=obj
-MAIN_DIR=main
-INC_DIR=inc
-
-src=$(wildcard $(SRC_DIR)/*.cpp)
-src_obj=$(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(src))
-tpl_h=$(INC_DIR)/RawArray.h $(INC_DIR)/StdArray.h $(INC_DIR)/Async.h $(INC_DIR)/Test.h
-main=$(MAIN_DIR)/example.cpp
-main_obj=$(OBJ_DIR)/example.o
-target=$(MAIN_DIR)/example.exe
-all_obj=$(src_obj) $(main_obj)
+CFLAG    = -std=c++20
+cpl_cmd  = gcc -g -c $$< -I $(INC_DIR) -o $$@ $(CFLAG)
 
 ##
-CFLAG=-std=c++20
+all: $(objects)
+	g++ -g $(filter-out $(depends),$^) -o $(MAIN_DIR)/$(target).exe
+
+$(depends):
+	@./deps.exe $(depends) $(INC_DIR) $(OBJ_DIR) "$(cpl_cmd)" $(sources)
+	@echo building depends...
+
+sinclude $(depends)
 
 ##
-$(target):$(all_obj)
-	g++ -g $^ -o $@
-
-$(main_obj):$(main) $(tpl_h)
-	gcc -g -c $< -o $@ $(CFLAG)
-
-$(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp $(INC_DIR)/%.h
-	gcc -g -c $< -o $@ $(CFLAG)
-
-##
+.PHONY: clean debug test
 clean:
 	del $(OBJ_DIR)\\*.o
 	del $(MAIN_DIR)\\example.exe
+	del $(depends)
+debug:
+	@echo sources:  	         $(sources)
+	@echo objects:  	         $(objects)
+	@echo headers:               $(headers)
+test:
+	mingw32-make all
+	main\\example.exe

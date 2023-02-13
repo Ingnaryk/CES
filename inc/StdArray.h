@@ -8,61 +8,6 @@
 template <typename T>
 class StdArray
 {
-    //////////////////////////////////Utilities
-    template <typename U>
-    using CallbackF_Basic = std::variant<std::function<U()>,
-                                         std::function<U(T)>,
-                                         std::function<U(T, size_t)>,
-                                         std::function<U(T, size_t, StdArray &)>>;
-    using CallbackF_Reduce = std::variant<std::function<T(T, T)>,
-                                          std::function<T(T, T, size_t)>,
-                                          std::function<T(T, T, size_t, StdArray &)>>;
-    template <typename newT>
-    std::function<newT(T, size_t, StdArray &)> convert_basic(const CallbackF_Basic<newT> &fn)
-    {
-        std::function<newT(T, size_t, StdArray &)> f;
-        switch (fn.index())
-        {
-        case 0:
-            f = [&fn](T, size_t, StdArray &)
-            { return std::get<0>(fn)(); };
-            break;
-        case 1:
-            f = [&fn](T value, size_t, StdArray &)
-            { return std::get<1>(fn)(value); };
-            break;
-        case 2:
-            f = [&fn](T value, size_t index, StdArray &)
-            { return std::get<2>(fn)(value, index); };
-            break;
-        case 3:
-            f = [&fn](T value, size_t index, StdArray &thisArray)
-            { return std::get<3>(fn)(value, index, thisArray); };
-            break;
-        }
-        return f;
-    }
-    std::function<T(T, T, size_t, StdArray &)> convert_reduce(const CallbackF_Reduce &fn)
-    {
-        std::function<T(T, T, size_t, StdArray &)> f;
-        switch (fn.index())
-        {
-        case 0:
-            f = [&fn](T value1, T value2, size_t, StdArray &)
-            { return std::get<0>(fn)(value1, value2); };
-            break;
-        case 1:
-            f = [&fn](T value1, T value2, size_t crtIndex, StdArray &)
-            { return std::get<1>(fn)(value1, value2, crtIndex); };
-            break;
-        case 2:
-            f = [&fn](T value1, T value2, size_t crtIndex, StdArray &thisArray)
-            { return std::get<2>(fn)(value1, value2, crtIndex, thisArray); };
-            break;
-        }
-        return f;
-    }
-
 private:
     //////////////////////////////////Wrapped data
     std::list<T> data{};
@@ -118,7 +63,7 @@ public:
     {
         if (length <= 0)
             return undefined;
-        T last = data.back();
+        T last = std::move(data.back());
         data.pop_back();
         *const_cast<size_t *>(&length) = length - 1;
         return last;
@@ -127,7 +72,7 @@ public:
     {
         if (length <= 0)
             return undefined;
-        T first = data.front();
+        T first = std::move(data.front());
         data.pop_front();
         *const_cast<size_t *>(&length) = length - 1;
         return first;
@@ -179,84 +124,76 @@ public:
         }
         return ss.str();
     }
-    void forEach(const CallbackF_Basic<void> &callbackFn)
+    void forEach(const std::function<void(T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn)
     {
-        auto f = convert_basic<void>(callbackFn);
         size_t crtIndex = 0;
         for (T val : data)
-            f(val, crtIndex++, *this);
+            callbackFn(val, crtIndex++, std::ref(*this));
     }
-    bool some(const CallbackF_Basic<bool> &predicate)
+    bool some(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = 0;
         for (T val : data)
         {
-            if (f(val, crtIndex++, *this))
+            if (predicate(val, crtIndex++, std::ref(*this)))
                 return true;
         }
         return false;
     }
-    bool every(const CallbackF_Basic<bool> &predicate)
+    bool every(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = 0;
         for (T val : data)
         {
-            if (!f(val, crtIndex++, *this))
+            if (!predicate(val, crtIndex++, std::ref(*this)))
                 return false;
         }
         return true;
     }
-    Any find(const CallbackF_Basic<bool> &predicate)
+    Any find(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = 0;
         for (auto itor = data.cbegin(); itor != data.cend(); itor++)
         {
-            if (f(*itor, crtIndex++, *this))
+            if (predicate(*itor, crtIndex++, std::ref(*this)))
                 return *itor;
         }
         return undefined;
     }
-    Any findLast(const CallbackF_Basic<bool> &predicate)
+    Any findLast(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = length - 1;
         for (auto itor = data.crbegin(); itor != data.crend(); itor++)
         {
-            if (f(*itor, crtIndex--, *this))
+            if (predicate(*itor, crtIndex--, std::ref(*this)))
                 return *itor;
         }
         return undefined;
     }
-    ptrdiff_t findIndex(const CallbackF_Basic<bool> &predicate)
+    ptrdiff_t findIndex(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = 0;
         for (auto itor = data.cbegin(); itor != data.cend(); itor++)
         {
-            if (f(*itor, crtIndex++, *this))
+            if (predicate(*itor, crtIndex++, std::ref(*this)))
                 return --crtIndex;
         }
         return -1;
     }
-    ptrdiff_t findLastIndex(const CallbackF_Basic<bool> &predicate)
+    ptrdiff_t findLastIndex(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         size_t crtIndex = length - 1;
         for (auto itor = data.crbegin(); itor != data.crend(); itor++)
         {
-            if (f(*itor, crtIndex--, *this))
+            if (predicate(*itor, crtIndex--, std::ref(*this)))
                 return ++crtIndex;
         }
         return -1;
     }
-    T reduce(const CallbackF_Reduce &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduce(const std::function<T(T, T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length == 0)
             return undefined;
-        auto f = convert_reduce(callbackFn);
         auto itor = data.cbegin();
         size_t crtIndex = 0;
         T accumulator;
@@ -270,15 +207,14 @@ public:
         }
         for (; itor != data.cend(); itor++)
         {
-            accumulator = f(accumulator, *itor, crtIndex++, *this);
+            accumulator = callbackFn(accumulator, *itor, crtIndex++, std::ref(*this));
         }
         return accumulator;
     }
-    T reduceRight(const CallbackF_Reduce &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduceRight(const std::function<T(T, T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length == 0)
             return undefined;
-        auto f = convert_reduce(callbackFn);
         auto itor = data.crbegin();
         size_t crtIndex = length - 1;
         T accumulator;
@@ -292,29 +228,27 @@ public:
         }
         for (; itor != data.crend(); itor++)
         {
-            accumulator = f(accumulator, *itor, crtIndex--, *this);
+            accumulator = callbackFn(accumulator, *itor, crtIndex--, std::ref(*this));
         }
         return accumulator;
     }
-    StdArray<T> filter(const CallbackF_Basic<bool> &predicate)
+    StdArray<T> filter(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         StdArray<T> filterArray(0);
         size_t crtIndex = 0;
         for (T val : data)
         {
-            if (f(val, crtIndex++, *this))
+            if (predicate(val, crtIndex++, std::ref(*this)))
                 filterArray.push(val);
         }
         return filterArray;
     }
-    StdArray<Any> map(const CallbackF_Basic<Any> &mapFn)
+    StdArray<Any> map(const std::function<Any(T, size_t, std::reference_wrapper<StdArray<T>>)> &mapFn)
     {
-        auto f = convert_basic<Any>(mapFn);
         StdArray<Any> mapArray(0);
         size_t crtIndex = 0;
         for (T val : data)
-            mapArray.push(std::move(f(val, crtIndex++, *this)));
+            mapArray.push(std::move(mapFn(val, crtIndex++, std::ref(*this))));
         return mapArray;
     }
     StdArray<T> concat(const StdArray<T> &otherArray) const

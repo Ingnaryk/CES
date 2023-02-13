@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "../inc/Timer.h"
+#include "Timer.h"
 
 Timer::Timer(const char *name) : name(name)
 {

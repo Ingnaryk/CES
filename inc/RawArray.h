@@ -8,109 +8,25 @@
 template <typename T>
 class RawArray
 {
-    //////////////////////////////////Utilities
-    template <typename U>
-    using CallbackF_Basic = std::variant<std::function<U()>,
-                                         std::function<U(T)>,
-                                         std::function<U(T, size_t)>,
-                                         std::function<U(T, size_t, RawArray<T> &)>>;
-    template <typename U>
-    using CallbackF_Reduce = std::variant<std::function<U(T, T)>,
-                                          std::function<U(T, T, size_t)>,
-                                          std::function<U(T, T, size_t, RawArray<T> &)>>;
-    template <typename newT>
-    std::function<newT(T, size_t, RawArray<T> &)> convert_basic(const CallbackF_Basic<newT> &fn)
-    {
-        std::function<newT(T, size_t, RawArray<T> &)> f;
-        switch (fn.index())
-        {
-        case 0:
-            f = [&fn](T, size_t, RawArray<T> &)
-            { return std::get<0>(fn)(); };
-            break;
-        case 1:
-            f = [&fn](T value, size_t, RawArray<T> &)
-            { return std::get<1>(fn)(value); };
-            break;
-        case 2:
-            f = [&fn](T value, size_t index, RawArray<T> &)
-            { return std::get<2>(fn)(value, index); };
-            break;
-        case 3:
-            f = [&fn](T value, size_t index, RawArray<T> &thisArray)
-            { return std::get<3>(fn)(value, index, thisArray); };
-            break;
-        }
-        return f;
-    }
-    template <typename newT>
-    std::function<newT(T, T, size_t, RawArray<T> &)> convert_reduce(const CallbackF_Reduce<newT> &fn)
-    {
-        std::function<newT(T, T, size_t, RawArray<T> &)> f;
-        switch (fn.index())
-        {
-        case 0:
-            f = [&fn](T value1, T value2, size_t, RawArray<T> &)
-            { return std::get<0>(fn)(value1, value2); };
-            break;
-        case 1:
-            f = [&fn](T value1, T value2, size_t crtIndex, RawArray<T> &)
-            { return std::get<1>(fn)(value1, value2, crtIndex); };
-            break;
-        case 2:
-            f = [&fn](T value1, T value2, size_t crtIndex, RawArray<T> &thisArray)
-            { return std::get<2>(fn)(value1, value2, crtIndex, thisArray); };
-            break;
-        }
-        return f;
-    }
-
 private:
     //////////////////////////////////Internal usage
-    T *alloc(size_t n)
-    {
-        return static_cast<T *>(::operator new(n * sizeof(T)));
-    }
-    void dealloc(T *p) noexcept
-    {
-        ::operator delete(p);
-    }
-    template <typename... Args>
-    void construct(T *p, Args &&...args)
-    {
-        ::new (p) T(std::forward<Args>(args)...);
-    }
-    void destroy(T *p) noexcept
-    {
-        p->~T();
-    }
-    void clear() noexcept
-    {
-        size_t &_length = *const_cast<size_t *>(&length);
-        for (; _length > 0; _length--)
-            destroy(data + _length - 1);
-    }
-    void swap(RawArray<T> &otherArray) noexcept
-    {
-        std::swap(capacity, otherArray.capacity);
-        std::swap(*const_cast<size_t *>(&length), *const_cast<size_t *>(&otherArray.length));
-        std::swap(data, otherArray.data);
-    }
-    template <typename Arg>
-    void insertAt(size_t loc, const Arg &element)
+    void insertAt(size_t loc, const T &element)
     {
         if (length == capacity)
         {
             size_t newCapacity = (capacity ? capacity * 2 : 1);
-            T *newData = alloc(newCapacity);
+            T *newData = (T *)(::operator new(newCapacity * sizeof(T)));
             for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move(data[i]));
+                ::new (newData + i) T(std::move(data[i]));
             capacity = newCapacity;
+            ::operator delete(data);
             data = newData;
         }
-        for (ptrdiff_t i = length; i > loc; i--)
-            construct(data + i, std::move(data[i - 1]));
-        construct(data + loc, element);
+
+        for (size_t i = length; i > loc; i--)
+            ::new (data + i) T(std::move(data[i - 1]));
+        ::new (data + loc) T(element);
+
         *const_cast<size_t *>(&length) = length + 1;
     }
     //////////////////////////////////Wrapped data
@@ -119,81 +35,73 @@ private:
 
 public:
     //////////////////////////////////Variadic templates functions' end
-    template <typename Arg>
-        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
-    size_t push(const Arg &element)
+    template <class First>
+        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+    size_t push(const First &element)
     {
-        insertAt(length, std::move(element));
+        insertAt(length, element);
         return length;
     }
-    template <typename Arg>
-        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
-    size_t unshift(const Arg &element)
+    template <class First>
+        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+    size_t unshift(const First &element)
     {
-        insertAt(0, std::move(element));
+        insertAt(0, element);
         return length;
     }
     //////////////////////////////////ES Property
     const size_t length{0};
     //////////////////////////////////Constructor
-    explicit RawArray(size_t size) : capacity{size}, data{alloc(capacity)}
+    explicit RawArray(size_t size) : capacity{size}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < size; _length++)
-            construct(data + _length); // call T's default constructor
+            ::new (data + _length) T();
     }
-    RawArray(T *otherData, size_t size) : capacity{size}, data{alloc(capacity)}
+    RawArray(T *otherData, size_t size) : capacity{size}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < size; _length++)
-            construct(data + _length, std::move(otherData[_length]));
+            ::new (data + _length) T(otherData[_length]);
     }
-    RawArray(const std::initializer_list<T> &elements) : capacity{elements.size()}, data{alloc(capacity)}
+    RawArray(T *otherData, size_t size, size_t capacity) : length{size}, capacity{capacity}, data{otherData} {}
+    RawArray(const std::initializer_list<T> &elements) : capacity{elements.size()}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
         size_t &_length = *const_cast<size_t *>(&length);
-        for (const auto &ele : elements)
-            construct(data + _length++, std::move(ele));
+        for (const T &ele : elements)
+            ::new (data + _length++) T(ele);
     }
-    RawArray(const RawArray<T> &otherArray) : capacity{otherArray.length}, data{alloc(capacity)}
+    RawArray(const RawArray<T> &otherArray) : capacity{otherArray.capacity}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
         size_t &_length = *const_cast<size_t *>(&length);
         for (; _length < otherArray.length; _length++)
-            construct(data + _length, otherArray.data[_length]); // call T's copy constructor
+            ::new (data + _length) T(*(otherArray.data + _length));
     }
-    RawArray(RawArray<T> &&rvArray) noexcept
+    RawArray(RawArray<T> &&rvArray) : capacity{rvArray.capacity}, data{rvArray.data}
     {
-        swap(rvArray);
+        *const_cast<size_t *>(&length) = rvArray.length;
+        rvArray.data = nullptr;
     }
     //////////////////////////////////ES Method
-    template <typename Arg, typename... RestArgs>
-    size_t push(const Arg &element, const RestArgs &...elements)
+    template <typename First, typename... Rest>
+    size_t push(const First &element, const Rest &...elements)
     {
-        push(std::move(element));
-        push(std::move(elements)...);
+        push(element);
+        push(elements...);
         return length;
     }
-    template <typename Arg, typename... RestArgs>
-    size_t unshift(const Arg &element, const RestArgs &...elements)
+    template <typename First, typename... Rest>
+    size_t unshift(const First &element, const Rest &...elements)
     {
-        unshift(std::move(elements)...);
-        unshift(std::move(element));
+        unshift(elements...);
+        unshift(element);
         return length;
     }
     Any pop()
     {
         if (length <= 0)
             return undefined;
-        T last = data[length - 1];
-        if (length < capacity / 2)
-        {
-            size_t newCapacity = capacity / 2;
-            T *newData = alloc(newCapacity);
-            for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move(data[i]));
-            capacity = newCapacity;
-            data = newData;
-        }
-        destroy(data + length - 1);
+        T last = std::move(data[length - 1]);
         *const_cast<size_t *>(&length) = length - 1;
         return last;
     }
@@ -201,19 +109,12 @@ public:
     {
         if (length <= 0)
             return undefined;
-        T first = data[0];
-        if (length < capacity / 2)
+        T first = std::move(data[0]);
+        if (length - 1 > 0)
         {
-            size_t newCapacity = capacity / 2;
-            T *newData = alloc(newCapacity);
-            for (size_t i = 0; i < length; i++)
-                construct(newData + i, std::move(data[i]));
-            capacity = newCapacity;
-            data = newData;
+            for (size_t i = 0; i < length - 1; i++)
+                ::new (data + i) T(std::move(data[i + 1]));
         }
-        destroy(data + 0);
-        for (size_t i = 0; i < length - 1; i++)
-            construct(data + i, std::move(data[i + 1]));
         *const_cast<size_t *>(&length) = length - 1;
         return first;
     }
@@ -262,77 +163,69 @@ public:
         }
         return ss.str();
     }
-    void forEach(const CallbackF_Basic<void> &callbackFn)
+    void forEach(const std::function<void(T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn)
     {
-        auto f = convert_basic<void>(callbackFn);
         for (size_t i = 0; i < length; i++)
-            f(data[i], i, *this);
+            callbackFn(data[i], i, std::ref(*this));
     }
-    bool some(const CallbackF_Basic<bool> &predicate)
+    bool some(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = 0; i < length; i++)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 return true;
         }
         return false;
     }
-    bool every(const CallbackF_Basic<bool> &predicate)
+    bool every(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = 0; i < length; i++)
         {
-            if (!f(data[i], i, *this))
+            if (!predicate(data[i], i, std::ref(*this)))
                 return false;
         }
         return true;
     }
-    Any find(const CallbackF_Basic<bool> &predicate)
+    Any find(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = 0; i < length; i++)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 return data[i];
         }
         return undefined;
     }
-    Any findLast(const CallbackF_Basic<bool> &predicate)
+    Any findLast(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = length - 1; i >= 0; i--)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 return data[i];
         }
         return undefined;
     }
-    ptrdiff_t findIndex(const CallbackF_Basic<bool> &predicate)
+    ptrdiff_t findIndex(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = 0; i < length; i++)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 return i;
         }
         return -1;
     }
-    ptrdiff_t findLastIndex(const CallbackF_Basic<bool> &predicate)
+    ptrdiff_t findLastIndex(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         for (size_t i = length - 1; i >= 0; i--)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 return i;
         }
         return -1;
     }
-    T reduce(const CallbackF_Reduce<T> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduce(const std::function<T(T, T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length <= 0)
             return T{};
-        auto f = convert_reduce<T>(callbackFn);
         ptrdiff_t crtIndex = 0;
         T accumulator;
         if (_initialValue.has_value())
@@ -343,14 +236,13 @@ public:
             crtIndex++;
         }
         for (ptrdiff_t i = crtIndex; i < length; i++)
-            accumulator = f(accumulator, data[i], i, *this);
+            accumulator = callbackFn(accumulator, data[i], i, std::ref(*this));
         return accumulator;
     }
-    T reduceRight(const CallbackF_Reduce<T> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduceRight(const std::function<T(T, T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length <= 0)
             return T{};
-        auto f = convert_reduce<T>(callbackFn);
         ptrdiff_t crtIndex = length - 1;
         T accumulator;
         if (_initialValue.has_value())
@@ -361,28 +253,26 @@ public:
             crtIndex--;
         }
         for (ptrdiff_t i = crtIndex; i >= 0; i--)
-            accumulator = f(accumulator, data[i], i, *this);
+            accumulator = callbackFn(accumulator, data[i], i, std::ref(*this));
         return accumulator;
     }
-    RawArray<T> filter(const CallbackF_Basic<bool> &predicate)
+    RawArray<T> filter(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        auto f = convert_basic<bool>(predicate);
         RawArray<T> filterArray(0);
         size_t filterLength = 0;
         for (size_t i = 0; i < length; i++)
         {
-            if (f(data[i], i, *this))
+            if (predicate(data[i], i, std::ref(*this)))
                 filterArray.push(data[i]);
         }
         return filterArray;
     }
-    RawArray<Any> map(const CallbackF_Basic<Any> &mapFn)
+    RawArray<Any> map(const std::function<Any(T, size_t, std::reference_wrapper<RawArray<T>>)> &mapFn)
     {
-        auto f = convert_basic<Any>(mapFn);
         Any *mapData = static_cast<Any *>(::operator new(length * sizeof(Any)));
         for (size_t i = 0; i < length; i++)
-            ::new (mapData + i) Any(std::move(f(data[i], i, *this)));
-        RawArray<Any> mapArray(mapData, length);
+            ::new (mapData + i) Any(mapFn(data[i], i, std::ref(*this)));
+        RawArray<Any> mapArray(mapData, length, length);
         return mapArray;
     }
     RawArray<T> concat(const RawArray<T> &otherArray)
@@ -394,13 +284,13 @@ public:
     }
     RawArray<T> slice(ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt) const
     {
+        RawArray<T> sliceArray(0);
         ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         (end < 0 && end > -length) && (end += length);
         end > length && (end = length);
         if (start >= length || end <= start)
-            return RawArray<T>(0);
-        RawArray<T> sliceArray(0);
+            return sliceArray;
         for (size_t i = 0; i < end - start; i++)
             sliceArray.push(data[start + i]);
         return sliceArray;
@@ -417,28 +307,25 @@ public:
         size_t restNum = length - start - deleteCount;
         if (deleteCount > 0)
         {
-            T *deleteData = alloc(deleteCount);
+            ::operator delete(spliceArray.data);
+            T *deleteData = (T *)(::operator new(deleteCount * sizeof(T)));
             for (size_t i = 0; i < deleteCount; i++)
-                construct(deleteData + i, std::move(data[start + i]));
+                ::new (deleteData + i) T(std::move(data[start + i]));
             spliceArray.capacity = deleteCount;
             *const_cast<size_t *>(&spliceArray.length) = deleteCount;
             spliceArray.data = deleteData;
-            std::move(data + start + deleteCount, data + length, data + start);
+            for (size_t i = start; i < restNum; i++)
+                ::new (data + i) T(std::move(data[i + deleteCount]));
             *const_cast<size_t *>(&length) = length - deleteCount;
         }
         size_t loc = 0;
-        for (const auto &ele : newElements)
+        for (const T &ele : newElements)
             insertAt(start + loc++, std::move(ele));
         return spliceArray;
     }
     RawArray<T> &reverse()
     {
-        for (size_t i = 0; i < length / 2; i++)
-        {
-            T c{data[i]};
-            data[i] = data[length - 1 - i];
-            data[length - 1 - i] = c;
-        }
+        std::reverse(data, data + length);
         return *this;
     }
     RawArray<T> &sort(std::optional<const std::function<ptrdiff_t(T, T)>> _compareFn = std::nullopt)
@@ -463,14 +350,15 @@ public:
         if (target >= length || start >= length || end <= start || target == start)
             return *this;
         size_t dist = std::min(end - start, end - target);
-        T *tmp = alloc(dist);
+        T *tmp = (T *)(::operator new(dist * sizeof(T)));
         for (size_t i = 0; i < dist; i++)
-            construct(tmp + i, std::move(data[start + i]));
+            ::new (tmp + i) T(std::move(data[start + i]));
         for (size_t i = 0; i < dist; i++)
         {
-            destroy(data + target + i);
-            construct(data + target + i, std::move(tmp[i]));
+            (data + target + i)->~T();
+            ::new (data + target + i) T(std::move(tmp[i]));
         }
+        ::operator delete(tmp);
         return *this;
     }
     RawArray<T> &fill(const T &value, ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt)
@@ -481,8 +369,8 @@ public:
         end > length && (end = length);
         for (size_t i = start; i < end; i++)
         {
-            destroy(data + i);
-            construct(data + i, value);
+            (data + i)->~T();
+            ::new (data + i) T(value);
         }
         return *this;
     }
@@ -499,20 +387,31 @@ public:
             index = 0;
         return data[index];
     }
-    RawArray<T> &operator=(const RawArray<T> &newArray)
+    RawArray<T> &operator=(const RawArray<T> &otherArray)
     {
-        if (this != &newArray)
+        if (this == &otherArray)
+            return *this;
+        if (capacity < otherArray.length)
         {
-            RawArray<T>(newArray.length).swap(*this);
-            std::copy(newArray.data, newArray.data + newArray.length, data);
+            ~RawArray();
+            capacity = otherArray.length;
+            ::operator new(capacity * sizeof(T));
         }
+        else
+        {
+            for (size_t i = 0; i < length; i++)
+                (data + i)->~T();
+        }
+        *const_cast<size_t *>(&length) = otherArray.length;
+        for (size_t i = 0; i < length; i++)
+            ::new (data + i) T(otherArray.data[i]);
         return *this;
     }
-    RawArray<T> &operator=(RawArray<T> &&newArray)
+    RawArray<T> &operator=(RawArray<T> &&rvArray)
     {
-        capacity = std::__exchange(newArray.capacity, 0);
-        *const_cast<size_t *>(&length) = std::__exchange(*const_cast<size_t *>(&newArray.length), 0);
-        data = std::__exchange(newArray.data, nullptr);
+        std::swap(capacity, rvArray.capacity);
+        std::swap(const_cast<size_t &>(length), const_cast<size_t &>(rvArray.length));
+        std::swap(data, rvArray.data);
         return *this;
     }
     friend std::ostream &operator<<(std::ostream &os, const RawArray<T> &array)
@@ -531,8 +430,12 @@ public:
     //////////////////////////////////Desstructor
     ~RawArray() noexcept
     {
-        clear();
-        dealloc(data);
+        if (data)
+        {
+            for (size_t i = 0; i < length; i++)
+                (data + i)->~T();
+            ::operator delete(data);
+        }
     }
 };
 

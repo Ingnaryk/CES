@@ -2,7 +2,7 @@
 #include <codecvt>
 #include <string_view>
 
-#include "../inc/string.h"
+#include "string.h"
 
 namespace tool
 {

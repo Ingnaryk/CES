@@ -1,4 +1,6 @@
-#include "../inc/Test.h"
+#include <iostream>
+
+#include "test.h"
 
 int main()
 {
@@ -7,13 +9,13 @@ int main()
 #define ASYNC_TEST 0
 #define STRING_TEST 0
 #if ARRAY_TEST
-     Test::testArray();
+     test::testArray();
 #endif // ARRAY_TEST
 #if ASYNC_TEST
-     Test::testAsync();
+     test::testAsync();
 #endif // ASYNC_TEST
 #if STRING_TEST
-     Test::testString();
+     test::testString();
 #endif // STRING_TEST
      return 0;
 }
