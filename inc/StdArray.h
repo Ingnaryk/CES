@@ -14,17 +14,17 @@ private:
 
 public:
     //////////////////////////////////Variadic templates functions' end
-    template <typename Arg>
-        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
-    size_t push(const Arg &element)
+    template <typename First>
+        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+    size_t push(const First &element)
     {
         data.push_back(element);
         *const_cast<size_t *>(&length) = length + 1;
         return length;
     }
-    template <typename Arg>
-        requires(std::is_same_v<Arg, T> || std::is_same_v<T, Any>)
-    size_t unshift(const Arg &element)
+    template <typename First>
+        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+    size_t unshift(const First &element)
     {
         data.push_front(element);
         *const_cast<size_t *>(&length) = length + 1;
@@ -39,21 +39,17 @@ public:
         data.insert(data.end(), elements);
     }
     StdArray(const StdArray &otherArray) : data{otherArray.data}, length{otherArray.length} {}
-    StdArray(StdArray &&rvArray) noexcept
-    {
-        std::swap(*const_cast<size_t *>(&length), *const_cast<size_t *>(&rvArray.length));
-        data.swap(rvArray.data);
-    }
+    StdArray(StdArray &&rvArray) : length{rvArray.length}, data{rvArray.data} {}
     //////////////////////////////////ES Method
-    template <typename Arg, typename... RestArgs>
-    size_t push(const Arg &element, RestArgs const &...elements)
+    template <typename First, typename... Rest>
+    size_t push(const First &element, const Rest &...elements)
     {
         push(element);
         push(elements...);
         return length;
     }
-    template <typename Arg, typename... RestArgs>
-    size_t unshift(const Arg &element, RestArgs const &...elements)
+    template <typename First, typename... Rest>
+    size_t unshift(const First &element, const Rest &...elements)
     {
         unshift(elements...);
         unshift(element);
@@ -356,19 +352,19 @@ public:
         advance(itor, index);
         return *itor;
     }
-    StdArray<T> &operator=(const StdArray<T> &newArray)
+    StdArray<T> &operator=(const StdArray<T> &otherArray)
     {
-        if (this != &newArray)
+        if (this != &otherArray)
         {
-            std::list<T>(newArray.data).swap(data);
-            *const_cast<size_t *>(&length) = newArray.length;
+            std::list<T>(otherArray.data).swap(data);
+            *const_cast<size_t *>(&length) = otherArray.length;
         }
         return *this;
     }
-    StdArray<T> &operator=(StdArray<T> &&newArray)
+    StdArray<T> &operator=(StdArray<T> &&rvArray)
     {
-        *const_cast<size_t *>(&length) = std::__exchange(*const_cast<size_t *>(&newArray.length), 0);
-        data = std::__exchange(newArray.data, std::list<T>{});
+        std::swap(const_cast<size_t &>(length), const_cast<size_t &>(rvArray.length));
+        data.swap(rvArray.data);
         return *this;
     }
     friend std::ostream &operator<<(std::ostream &os, const StdArray<T> &array)
