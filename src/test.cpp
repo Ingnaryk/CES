@@ -98,7 +98,7 @@ namespace test
         std::cout << "the array that equals the slice of arr within index [1, 4)\n"
                   << arr.slice(1, 4) << std::endl;
         //------------------------splice
-        std::cout << "slice arr from index 1, delete two elements and splice with {-1, -2, -3} returns\n"
+        std::cout << "slice arr from index 1, delete 2 elements and splice with {-1, -2, -3} returns\n"
                   << arr.splice(1, 2, {-1, -2, -3})
                   << "\nand arr is\n"
                   << arr << std::endl;
