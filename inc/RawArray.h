@@ -77,9 +77,8 @@ public:
         for (; _length < otherArray.length; _length++)
             ::new (data + _length) T(*(otherArray.data + _length));
     }
-    RawArray(RawArray<T> &&rvArray) : capacity{rvArray.capacity}, data{rvArray.data}
+    RawArray(RawArray<T> &&rvArray) : capacity{rvArray.capacity}, length{rvArray.length}, data{rvArray.data}
     {
-        *const_cast<size_t *>(&length) = rvArray.length;
         rvArray.data = nullptr;
     }
     //////////////////////////////////ES Method
@@ -409,8 +408,8 @@ public:
     }
     RawArray<T> &operator=(RawArray<T> &&rvArray)
     {
-        std::swap(capacity, rvArray.capacity);
-        std::swap(const_cast<size_t &>(length), const_cast<size_t &>(rvArray.length));
+        capacity = rvArray.capacity;
+        *const_cast<size_t *>(&length) = rvArray.length;
         std::swap(data, rvArray.data);
         return *this;
     }

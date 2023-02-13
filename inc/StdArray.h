@@ -39,11 +39,7 @@ public:
         data.insert(data.end(), elements);
     }
     StdArray(const StdArray &otherArray) : data{otherArray.data}, length{otherArray.length} {}
-    StdArray(StdArray &&rvArray) noexcept
-    {
-        std::swap(*const_cast<size_t *>(&length), *const_cast<size_t *>(&rvArray.length));
-        data.swap(rvArray.data);
-    }
+    StdArray(StdArray &&rvArray) : length{rvArray.length}, data{rvArray.data} {}
     //////////////////////////////////ES Method
     template <typename First, typename... Rest>
     size_t push(const First &element, const Rest &...elements)
@@ -356,19 +352,19 @@ public:
         advance(itor, index);
         return *itor;
     }
-    StdArray<T> &operator=(const StdArray<T> &newArray)
+    StdArray<T> &operator=(const StdArray<T> &otherArray)
     {
-        if (this != &newArray)
+        if (this != &otherArray)
         {
-            std::list<T>(newArray.data).swap(data);
-            *const_cast<size_t *>(&length) = newArray.length;
+            std::list<T>(otherArray.data).swap(data);
+            *const_cast<size_t *>(&length) = otherArray.length;
         }
         return *this;
     }
-    StdArray<T> &operator=(StdArray<T> &&newArray)
+    StdArray<T> &operator=(StdArray<T> &&rvArray)
     {
-        *const_cast<size_t *>(&length) = std::__exchange(*const_cast<size_t *>(&newArray.length), 0);
-        data = std::__exchange(newArray.data, std::list<T>{});
+        std::swap(const_cast<size_t &>(length), const_cast<size_t &>(rvArray.length));
+        data.swap(rvArray.data);
         return *this;
     }
     friend std::ostream &operator<<(std::ostream &os, const StdArray<T> &array)
