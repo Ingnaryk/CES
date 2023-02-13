@@ -1,13 +1,13 @@
 #include <iostream>
 
-#include "Timer.h"
+#include "timer.h"
 
-Timer::Timer(const char *name) : name(name)
+timer::timer(const char *name) : name(name)
 {
     start = std::chrono::high_resolution_clock::now();
 }
 
-Timer::~Timer()
+timer::~timer()
 {
     end = std::chrono::high_resolution_clock::now();
     std::cout << name << " costs " << millisecond(end - start) << std::endl;
