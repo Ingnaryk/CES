@@ -3,7 +3,7 @@
 
 #include <chrono>
 
-struct Timer
+struct timer
 {
     using millisecond = std::chrono::duration<float, std::milli>;
     const char *name;
