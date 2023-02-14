@@ -6,8 +6,6 @@
 #include "string.h"
 #include "test.h"
 
-using namespace std::chrono_literals;
-
 namespace test
 {
     void testArray_spesific(auto &arr)

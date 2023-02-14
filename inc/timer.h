@@ -6,6 +6,8 @@
 
 using namespace std::chrono_literals;
 
+using namespace std::chrono_literals;
+
 struct timer
 {
     using millisecond = std::chrono::duration<float, std::milli>;
