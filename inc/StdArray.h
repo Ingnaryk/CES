@@ -3,7 +3,7 @@
 
 #include <list>
 
-#include "Any.h"
+#include "any.h"
 
 template <typename T>
 class StdArray
@@ -15,7 +15,7 @@ private:
 public:
     //////////////////////////////////Variadic templates functions' end
     template <typename First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t push(const First &element)
     {
         data.push_back(element);
@@ -23,7 +23,7 @@ public:
         return length;
     }
     template <typename First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t unshift(const First &element)
     {
         data.push_front(element);
@@ -55,7 +55,7 @@ public:
         unshift(element);
         return length;
     }
-    Any pop()
+    any pop()
     {
         if (length <= 0)
             return undefined;
@@ -64,7 +64,7 @@ public:
         *const_cast<size_t *>(&length) = length - 1;
         return last;
     }
-    Any shift()
+    any shift()
     {
         if (length <= 0)
             return undefined;
@@ -73,7 +73,7 @@ public:
         *const_cast<size_t *>(&length) = length - 1;
         return first;
     }
-    Any at(ptrdiff_t index) const
+    any at(ptrdiff_t index) const
     {
         index < 0 && (index += length);
         if (index < 0 || index >= length)
@@ -146,7 +146,7 @@ public:
         }
         return true;
     }
-    Any find(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    any find(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
         size_t crtIndex = 0;
         for (auto itor = data.cbegin(); itor != data.cend(); itor++)
@@ -156,7 +156,7 @@ public:
         }
         return undefined;
     }
-    Any findLast(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    any findLast(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
         size_t crtIndex = length - 1;
         for (auto itor = data.crbegin(); itor != data.crend(); itor++)
@@ -239,9 +239,9 @@ public:
         }
         return filterArray;
     }
-    StdArray<Any> map(const std::function<Any(T, size_t, std::reference_wrapper<StdArray<T>>)> &mapFn)
+    StdArray<any> map(const std::function<any(T, size_t, std::reference_wrapper<StdArray<T>>)> &mapFn)
     {
-        StdArray<Any> mapArray(0);
+        StdArray<any> mapArray(0);
         size_t crtIndex = 0;
         for (T val : data)
             mapArray.push(std::move(mapFn(val, crtIndex++, std::ref(*this))));

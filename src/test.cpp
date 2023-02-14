@@ -1,4 +1,4 @@
-#include "Any.h"
+#include "any.h"
 #include "RawArray.h"
 #include "StdArray.h"
 #include "Async.h"
@@ -45,52 +45,52 @@ namespace test
         //------------------------forEach & operator=
         arr = {1, 5, 3, 7, 8, 9};
         std::cout << "arr = {1, 5, 3, 7, 8, 9} and the square of each value is\n\n";
-        arr.forEach([](Any value, ...)
+        arr.forEach([](any value, ...)
                     { std::cout << std::get<int>(value) * std::get<int>(value) << " "; });
         std::cout << "\n"
                   << std::endl;
         //------------------------some
-        std::cout << "'arr includes even number' is " << arr.some([](Any value, ...)
+        std::cout << "'arr includes even number' is " << arr.some([](any value, ...)
                                                                   { return std::get<int>(value) % 2 == 0; })
                   << std::endl;
         //------------------------every
-        std::cout << "'all the numbers in arr are positive' is " << arr.every([](Any value, ...)
+        std::cout << "'all the numbers in arr are positive' is " << arr.every([](any value, ...)
                                                                               { return std::get<int>(value) > 0; })
                   << std::endl;
         //------------------------find
-        std::cout << "the first number in arr which is larger than 5 is " << arr.find([](Any value, ...)
+        std::cout << "the first number in arr which is larger than 5 is " << arr.find([](any value, ...)
                                                                                       { return std::get<int>(value) > 5; })
                   << std::endl;
         //------------------------findLast
-        std::cout << "the last number in arr which is smaller than 9 is " << arr.findLast([](Any value, ...)
+        std::cout << "the last number in arr which is smaller than 9 is " << arr.findLast([](any value, ...)
                                                                                           { return std::get<int>(value) < 9; })
                   << std::endl;
         //------------------------findIndex
-        std::cout << "the index of first number in arr which is larger than 5 is " << arr.findIndex([](Any value, ...)
+        std::cout << "the index of first number in arr which is larger than 5 is " << arr.findIndex([](any value, ...)
                                                                                                     { return std::get<int>(value) > 5; })
                   << std::endl;
         //------------------------findLastIndex
-        std::cout << "the index of last number in arr which is smaller than 9 is " << arr.findLastIndex([](Any value, ...)
+        std::cout << "the index of last number in arr which is smaller than 9 is " << arr.findLastIndex([](any value, ...)
                                                                                                         { return std::get<int>(value) < 9; })
                   << std::endl;
         //------------------------reduce
-        std::cout << "the sum of numbers in arr(with initial value 100) is " << arr.reduce([](Any a, Any b, ...)
+        std::cout << "the sum of numbers in arr(with initial value 100) is " << arr.reduce([](any a, any b, ...)
                                                                                            { return std::get<int>(a) + std::get<int>(b); },
                                                                                            100)
                   << std::endl;
         //------------------------reduceRight
-        std::cout << "the product of numbers in arr meanwhile adding their index(from right side) is " << arr.reduceRight([](Any a, Any b, size_t crtIndex, ...)
-                                                                                                                          { Any r = std::get<int>(a) * std::get<int>(b);
+        std::cout << "the product of numbers in arr meanwhile adding their index(from right side) is " << arr.reduceRight([](any a, any b, size_t crtIndex, ...)
+                                                                                                                          { any r = std::get<int>(a) * std::get<int>(b);
                                                                                                               return std::get<int>(r) += crtIndex; })
                   << std::endl;
         //------------------------filter
         std::cout << "the array that contains the numbers larger than 3 in arr\n"
-                  << arr.filter([](Any value, ...)
+                  << arr.filter([](any value, ...)
                                 { return std::get<int>(value) > 3; })
                   << std::endl;
         //------------------------map
         std::cout << "the array that equals each number in arr multiplied by 0.3\n"
-                  << arr.map([](Any value, ...)
+                  << arr.map([](any value, ...)
                              { return (double)(std::get<int>(value) * 0.3); })
                   << std::endl;
         //------------------------concat
@@ -110,7 +110,7 @@ namespace test
         //------------------------sort
         std::cout << "sort arr by default order\n"
                   << arr.sort() << "\nand sort arr by descending order\n"
-                  << arr.sort([](Any a, Any b, ...)
+                  << arr.sort([](any a, any b, ...)
                               { return a > b ? -1 : 1; })
                   << std::endl;
         //------------------------copyWithin
@@ -127,23 +127,24 @@ namespace test
 
     void testArray()
     {
+        timer::outputBuffer = 2;
         {
             timer t("StdArray Test");
-            StdArray<Any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
+            StdArray<any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
             testArray_spesific(arr);
         }
-        std::cout << "----------------------------------------------------------" << std::endl;
+        std::cout << "\n\n";
         {
             timer t("RawArray Test");
-            RawArray<Any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
+            RawArray<any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
             testArray_spesific(arr);
         }
     }
 
     void testAsync()
     {
-        AsyncFunction<std::string, Any> f(
-            [&](Any data)
+        AsyncFunction<std::string, any> f(
+            [&](any data)
             {
                 std::this_thread::sleep_for(1000ms);
                 auto type = std::visit([](auto &v)

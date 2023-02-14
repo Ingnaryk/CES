@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "Any.h"
+#include "any.h"
 
 template <typename T>
 class RawArray
@@ -36,14 +36,14 @@ private:
 public:
     //////////////////////////////////Variadic templates functions' end
     template <class First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t push(const First &element)
     {
         insertAt(length, element);
         return length;
     }
     template <class First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, Any>)
+        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t unshift(const First &element)
     {
         insertAt(0, element);
@@ -96,7 +96,7 @@ public:
         unshift(element);
         return length;
     }
-    Any pop()
+    any pop()
     {
         if (length <= 0)
             return undefined;
@@ -104,7 +104,7 @@ public:
         *const_cast<size_t *>(&length) = length - 1;
         return last;
     }
-    Any shift()
+    any shift()
     {
         if (length <= 0)
             return undefined;
@@ -117,7 +117,7 @@ public:
         *const_cast<size_t *>(&length) = length - 1;
         return first;
     }
-    Any at(ptrdiff_t index) const
+    any at(ptrdiff_t index) const
     {
         index < 0 && (index += length);
         if (index < 0 || index >= length)
@@ -185,7 +185,7 @@ public:
         }
         return true;
     }
-    Any find(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    any find(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
         for (size_t i = 0; i < length; i++)
         {
@@ -194,7 +194,7 @@ public:
         }
         return undefined;
     }
-    Any findLast(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    any findLast(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
         for (size_t i = length - 1; i >= 0; i--)
         {
@@ -266,12 +266,12 @@ public:
         }
         return filterArray;
     }
-    RawArray<Any> map(const std::function<Any(T, size_t, std::reference_wrapper<RawArray<T>>)> &mapFn)
+    RawArray<any> map(const std::function<any(T, size_t, std::reference_wrapper<RawArray<T>>)> &mapFn)
     {
-        Any *mapData = static_cast<Any *>(::operator new(length * sizeof(Any)));
+        any *mapData = static_cast<any *>(::operator new(length * sizeof(any)));
         for (size_t i = 0; i < length; i++)
-            ::new (mapData + i) Any(mapFn(data[i], i, std::ref(*this)));
-        RawArray<Any> mapArray(mapData, length, length);
+            ::new (mapData + i) any(mapFn(data[i], i, std::ref(*this)));
+        RawArray<any> mapArray(mapData, length, length);
         return mapArray;
     }
     RawArray<T> concat(const RawArray<T> &otherArray)
@@ -313,8 +313,8 @@ public:
             spliceArray.capacity = deleteCount;
             *const_cast<size_t *>(&spliceArray.length) = deleteCount;
             spliceArray.data = deleteData;
-            for (size_t i = start; i < restNum; i++)
-                ::new (data + i) T(std::move(data[i + deleteCount]));
+            for (size_t i = 0; i < restNum; i++)
+                ::new (data + start + i) T(std::move(data[start + i + deleteCount]));
             *const_cast<size_t *>(&length) = length - deleteCount;
         }
         size_t loc = 0;

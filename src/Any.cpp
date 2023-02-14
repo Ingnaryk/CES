@@ -1,12 +1,12 @@
-#include "Any.h"
+#include "any.h"
 
-constexpr const char *boolean(bool &arg)
+constexpr const char *boolean(bool arg)
 {
     return arg ? "true" : "false";
 }
-std::ostream &operator<<(std::ostream &os, const Any &value)
+std::ostream &operator<<(std::ostream &os, const any &value)
 {
-    visit(
+    std::visit(
         overloaded{[&os](auto arg)
                    { os << arg; },
                    [&os](bool arg)
@@ -16,9 +16,10 @@ std::ostream &operator<<(std::ostream &os, const Any &value)
                    [&os](const std::string &arg)
                    { os << (typeid(os) == typeid(std::ostream) ? ("\"" + arg + "\"") : arg); },
                    [&os](void *arg)
-                   { char s[25];
-                     sprintf(s, (arg != nullptr ? "address(%p)" : "undefined"), arg);
-                     os << s; },
+                   { if (arg != nullptr)
+                        os << "address(" << arg << ")";
+                     else
+                        os << "undefined"; },
                    [&os](std::nullptr_t arg)
                    { os << "undefined"; }},
         value);

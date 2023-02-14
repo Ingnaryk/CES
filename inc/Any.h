@@ -13,19 +13,21 @@
 #include <utility>
 
 #define undefined nullptr
-using Any = std::variant<void *, int, long long, bool, double, std::string>;
+using any = std::variant<void *, int, long long, bool, double, std::string>;
 
-// helper type for the visitor #4
+// visitor helper
 template <class... Ts>
 struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
+#if __cplusplus < 202002L
 // explicit deduction guide (not needed as of C++20)
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
+#endif
 
-constexpr const char *boolean(bool &arg);
-std::ostream &operator<<(std::ostream &os, const Any &value);
+constexpr const char *boolean(bool arg);
+std::ostream &operator<<(std::ostream &os, const any &value);
 
 #endif // _ANY_H_
