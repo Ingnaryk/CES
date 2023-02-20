@@ -143,7 +143,7 @@ namespace test
     {
         timer::outputBuffer = 2;
         {
-            timer t("StdArray<int> add 10k elements back and front continuously");
+            timer t("StdArray<int> adds 10k elements back and front continuously");
             StdArray<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 10000; i++)
             {
@@ -152,7 +152,7 @@ namespace test
             }
         }
         {
-            timer t("std::list<int> add 10k elements back and front continuously");
+            timer t("std::list<int> adds 10k elements back and front continuously");
             std::list<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 10000; i++)
             {
@@ -170,7 +170,7 @@ namespace test
     {
         timer::outputBuffer = 2;
         {
-            timer t("RawArray<int> add 100k elements back continuously");
+            timer t("RawArray<int> adds 100k elements back continuously");
             RawArray<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 100000; i++)
             {
@@ -178,7 +178,7 @@ namespace test
             }
         }
         {
-            timer t("std::vector<int> add 100k elements back continuously");
+            timer t("std::vector<int> adds 100k elements back continuously");
             std::vector<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 100000; i++)
             {
