@@ -15,18 +15,16 @@ private:
 public:
     //////////////////////////////////Variadic templates functions' end
     template <typename First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t push(const First &element)
     {
-        data.push_back(element);
+        data.emplace_back(element);
         *const_cast<size_t *>(&length) = length + 1;
         return length;
     }
     template <typename First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t unshift(const First &element)
     {
-        data.push_front(element);
+        data.emplace_front(element);
         *const_cast<size_t *>(&length) = length + 1;
         return length;
     }
@@ -78,7 +76,7 @@ public:
         index < 0 && (index += length);
         if (index < 0 || index >= length)
             return undefined;
-        auto itor = data.cbegin();
+        auto itor = data.begin();
         advance(itor, index);
         return *itor;
     }

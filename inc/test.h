@@ -3,9 +3,11 @@
 
 namespace test
 {
-    void testArray();
+    void demo_StdArray_RawArray();
 
-    void testArray_spesific(auto &arr);
+    void test_StdArray_stdlist();
+
+    void test_RawArray_stdvector();
 
     void testAsync();
 

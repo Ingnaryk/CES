@@ -92,7 +92,8 @@ public:
     template <typename First, typename... Rest>
     size_t unshift(const First &element, const Rest &...elements)
     {
-        unshift(elements...);
+        if constexpr (sizeof...(Rest) > 0)
+            unshift(elements...);
         unshift(element);
         return length;
     }
