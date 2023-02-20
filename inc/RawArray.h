@@ -36,14 +36,12 @@ private:
 public:
     //////////////////////////////////Variadic templates functions' end
     template <class First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t push(const First &element)
     {
         insertAt(length, element);
         return length;
     }
     template <class First>
-        requires(std::is_same_v<First, T> || std::is_same_v<T, any>)
     size_t unshift(const First &element)
     {
         insertAt(0, element);
@@ -92,8 +90,7 @@ public:
     template <typename First, typename... Rest>
     size_t unshift(const First &element, const Rest &...elements)
     {
-        if constexpr (sizeof...(Rest) > 0)
-            unshift(elements...);
+        unshift(elements...);
         unshift(element);
         return length;
     }
