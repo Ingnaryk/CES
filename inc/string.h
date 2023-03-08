@@ -1,5 +1,8 @@
 #ifndef _STRING_H_
 #define _STRING_H_
+#include <locale>
+#include <codecvt>
+#include <string_view>
 
 #include "any.h"
 
@@ -8,6 +11,12 @@ class string
 private:
     //////////////////////////////////Wrapped data
     std::string m_str;
+    //////////////////////////////////Internal usage
+    mutable std::wstring_convert<std::codecvt_utf8<wchar_t>> wcv;
+    size_t strlen(const char *ptr)
+    {
+        return wcv.from_bytes(ptr).size();
+    }
 
 public:
     //////////////////////////////////ES Property

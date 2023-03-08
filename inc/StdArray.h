@@ -11,46 +11,39 @@ class StdArray
 private:
     //////////////////////////////////Wrapped data
     std::list<T> data{};
-
-public:
     //////////////////////////////////Variadic templates functions' end
-    template <typename First>
-    size_t push(const First &element)
-    {
-        data.emplace_back(element);
-        *const_cast<size_t *>(&length) = length + 1;
-        return length;
-    }
-    template <typename First>
-    size_t unshift(const First &element)
-    {
-        data.emplace_front(element);
-        *const_cast<size_t *>(&length) = length + 1;
-        return length;
-    }
-    //////////////////////////////////ES Property
-    const size_t length{0};
-    //////////////////////////////////Constructor
-    StdArray(size_t size) : data(size), length{size} {}
-    StdArray(const std::initializer_list<T> &elements) : length{elements.size()}
+    ptrdiff_t _push(std::initializer_list<T> elements)
     {
         data.insert(data.end(), elements);
+        const_cast<ptrdiff_t &>(length) += elements.size();
+        return length;
     }
+    ptrdiff_t _unshift(std::initializer_list<T> elements)
+    {
+        data.insert(data.begin(), elements);
+        const_cast<ptrdiff_t &>(length) += elements.size();
+        return length;
+    }
+
+public:
+    //////////////////////////////////ES Property
+    const ptrdiff_t length{0};
+    //////////////////////////////////Constructor
+    StdArray(ptrdiff_t size) : data((size_t)size), length{size} {}
+    StdArray(const std::initializer_list<T> &elements) : length{(ptrdiff_t)elements.size()}, data{elements} {}
     StdArray(const StdArray &otherArray) : data{otherArray.data}, length{otherArray.length} {}
     StdArray(StdArray &&rvArray) : length{rvArray.length}, data{rvArray.data} {}
     //////////////////////////////////ES Method
-    template <typename First, typename... Rest>
-    size_t push(const First &element, const Rest &...elements)
+    template <typename... Rest>
+    ptrdiff_t push(const T &element, const Rest &...elements)
     {
-        push(element);
-        push(elements...);
+        _push(std::initializer_list<T>{element, elements...});
         return length;
     }
-    template <typename First, typename... Rest>
-    size_t unshift(const First &element, const Rest &...elements)
+    template <typename... Rest>
+    ptrdiff_t unshift(const T &element, const Rest &...elements)
     {
-        unshift(elements...);
-        unshift(element);
+        _unshift(std::initializer_list<T>{element, elements...});
         return length;
     }
     any pop()
@@ -59,7 +52,7 @@ public:
             return undefined;
         T last = std::move(data.back());
         data.pop_back();
-        *const_cast<size_t *>(&length) = length - 1;
+        const_cast<ptrdiff_t &>(length)--;
         return last;
     }
     any shift()
@@ -68,7 +61,7 @@ public:
             return undefined;
         T first = std::move(data.front());
         data.pop_front();
-        *const_cast<size_t *>(&length) = length - 1;
+        const_cast<ptrdiff_t &>(length)--;
         return first;
     }
     any at(ptrdiff_t index) const
@@ -111,22 +104,22 @@ public:
     std::string join(const char *seperator = ",") const
     {
         std::stringstream ss;
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (const T &val : data)
         {
             ss << val << (crtIndex++ == length - 1 ? "" : seperator);
         }
         return ss.str();
     }
-    void forEach(const std::function<void(T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn)
+    void forEach(const std::function<void(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &callbackFn)
     {
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (T val : data)
             callbackFn(val, crtIndex++, std::ref(*this));
     }
-    bool some(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    bool some(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (T val : data)
         {
             if (predicate(val, crtIndex++, std::ref(*this)))
@@ -134,9 +127,9 @@ public:
         }
         return false;
     }
-    bool every(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    bool every(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (T val : data)
         {
             if (!predicate(val, crtIndex++, std::ref(*this)))
@@ -144,9 +137,9 @@ public:
         }
         return true;
     }
-    any find(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    any find(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (auto itor = data.cbegin(); itor != data.cend(); itor++)
         {
             if (predicate(*itor, crtIndex++, std::ref(*this)))
@@ -154,9 +147,9 @@ public:
         }
         return undefined;
     }
-    any findLast(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    any findLast(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = length - 1;
+        ptrdiff_t crtIndex = length - 1;
         for (auto itor = data.crbegin(); itor != data.crend(); itor++)
         {
             if (predicate(*itor, crtIndex--, std::ref(*this)))
@@ -164,9 +157,9 @@ public:
         }
         return undefined;
     }
-    ptrdiff_t findIndex(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    ptrdiff_t findIndex(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (auto itor = data.cbegin(); itor != data.cend(); itor++)
         {
             if (predicate(*itor, crtIndex++, std::ref(*this)))
@@ -174,9 +167,9 @@ public:
         }
         return -1;
     }
-    ptrdiff_t findLastIndex(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    ptrdiff_t findLastIndex(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
-        size_t crtIndex = length - 1;
+        ptrdiff_t crtIndex = length - 1;
         for (auto itor = data.crbegin(); itor != data.crend(); itor++)
         {
             if (predicate(*itor, crtIndex--, std::ref(*this)))
@@ -184,12 +177,12 @@ public:
         }
         return -1;
     }
-    T reduce(const std::function<T(T, T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduce(const std::function<T(T, T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length == 0)
             return undefined;
         auto itor = data.cbegin();
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         T accumulator;
         if (_initialValue.has_value())
             accumulator = *_initialValue;
@@ -205,12 +198,12 @@ public:
         }
         return accumulator;
     }
-    T reduceRight(const std::function<T(T, T, size_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduceRight(const std::function<T(T, T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length == 0)
             return undefined;
         auto itor = data.crbegin();
-        size_t crtIndex = length - 1;
+        ptrdiff_t crtIndex = length - 1;
         T accumulator;
         if (_initialValue.has_value())
             accumulator = *_initialValue;
@@ -226,10 +219,10 @@ public:
         }
         return accumulator;
     }
-    StdArray<T> filter(const std::function<bool(T, size_t, std::reference_wrapper<StdArray<T>>)> &predicate)
+    StdArray<T> filter(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &predicate)
     {
         StdArray<T> filterArray(0);
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (T val : data)
         {
             if (predicate(val, crtIndex++, std::ref(*this)))
@@ -237,12 +230,13 @@ public:
         }
         return filterArray;
     }
-    StdArray<any> map(const std::function<any(T, size_t, std::reference_wrapper<StdArray<T>>)> &mapFn)
+    template <typename U>
+    StdArray<U> map(const std::function<U(T, ptrdiff_t, std::reference_wrapper<StdArray<T>>)> &mapFn)
     {
-        StdArray<any> mapArray(0);
-        size_t crtIndex = 0;
+        StdArray<U> mapArray(0);
+        ptrdiff_t crtIndex = 0;
         for (T val : data)
-            mapArray.push(std::move(mapFn(val, crtIndex++, std::ref(*this))));
+            mapArray.push(mapFn(val, crtIndex++, std::ref(*this)));
         return mapArray;
     }
     StdArray<T> concat(const StdArray<T> &otherArray) const
@@ -256,8 +250,7 @@ public:
     {
         ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
-        (end < 0 && end > -length) && (end += length);
-        end > length && (end = length);
+        (end < 0 && end > -length) && (end += length) || end > length && (end = length);
         if (start >= length || end <= start)
             return StdArray<T>(0);
         StdArray<T> sliceArray(end - start);
@@ -268,25 +261,24 @@ public:
         copy(sitor, eitor, sliceArray.data.begin());
         return sliceArray;
     }
-    StdArray<T> splice(ptrdiff_t start, std::optional<size_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
+    StdArray<T> splice(ptrdiff_t start, std::optional<ptrdiff_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
     {
         StdArray<T> spliceArray(0);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         if (start >= length)
             return spliceArray;
-        size_t deleteCount = (_deleteCount.has_value() ? *_deleteCount : length - start);
-        deleteCount > length - start && (deleteCount = length - start);
-        deleteCount < 0 && (deleteCount = 0);
+        ptrdiff_t deleteCount = (_deleteCount.has_value() ? *_deleteCount : length - start);
+        deleteCount > length - start && (deleteCount = length - start) || deleteCount < 0 && (deleteCount = 0);
         auto sitor = data.begin();
         auto ditor = data.begin();
         advance(sitor, start);
         advance(ditor, start + deleteCount);
         spliceArray.data.splice(spliceArray.data.begin(), data, sitor, ditor);
-        *const_cast<size_t *>(&spliceArray.length) = deleteCount;
+        *const_cast<ptrdiff_t *>(&spliceArray.length) = deleteCount;
         sitor = data.begin();
         advance(sitor, start);
         data.insert(sitor, newElements);
-        *const_cast<size_t *>(&length) = length - deleteCount + newElements.size();
+        const_cast<ptrdiff_t &>(length) -= deleteCount - newElements.size();
         return spliceArray;
     }
     StdArray<T> &reverse()
@@ -315,7 +307,7 @@ public:
         end > length && (end = length);
         if (target >= length || start >= length || end <= start)
             return *this;
-        size_t des = end - start, det = end - target;
+        ptrdiff_t des = end - start, det = end - target;
         auto titor = data.begin();
         auto sitor = data.begin();
         advance(titor, target);
@@ -337,12 +329,12 @@ public:
         return *this;
     }
     //////////////////////////////////Operator
-    T &operator[](size_t index)
+    T &operator[](ptrdiff_t index)
     {
         if (index >= length)
         {
             data.resize(index + 1);
-            *const_cast<size_t *>(&length) = index + 1;
+            const_cast<ptrdiff_t &>(length) = index + 1;
         }
         else if (index < 0)
             index = 0;
@@ -355,13 +347,13 @@ public:
         if (this != &otherArray)
         {
             std::list<T>(otherArray.data).swap(data);
-            *const_cast<size_t *>(&length) = otherArray.length;
+            *const_cast<ptrdiff_t *>(&length) = otherArray.length;
         }
         return *this;
     }
     StdArray<T> &operator=(StdArray<T> &&rvArray)
     {
-        std::swap(const_cast<size_t &>(length), const_cast<size_t &>(rvArray.length));
+        std::swap(const_cast<ptrdiff_t &>(length), const_cast<ptrdiff_t &>(rvArray.length));
         data.swap(rvArray.data);
         return *this;
     }
@@ -370,7 +362,7 @@ public:
         if (array.length > 1)
             os << "\n(" << array.length << ") ";
         os << "[";
-        size_t crtIndex = 0;
+        ptrdiff_t crtIndex = 0;
         for (const T &val : array.data)
         {
             os << val << (crtIndex++ == array.length - 1 ? "" : ", ");

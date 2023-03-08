@@ -1,8 +1,6 @@
 #ifndef _RAWARRAY_H_
 #define _RAWARRAY_H_
 
-#include <memory>
-
 #include "any.h"
 
 template <typename T>
@@ -10,88 +8,112 @@ class RawArray
 {
 private:
     //////////////////////////////////Internal usage
-    void insertAt(size_t loc, const T &element)
+    void _insertAt(ptrdiff_t loc, const std::initializer_list<T> &elements, bool directly = false)
     {
-        if (length == capacity)
+        if (!directly && length + elements.size() > capacity)
         {
-            size_t newCapacity = (capacity ? capacity * 2 : 1);
+            ptrdiff_t newCapacity = std::max(length, (ptrdiff_t)elements.size()) * 2;
             T *newData = (T *)(::operator new(newCapacity * sizeof(T)));
-            for (size_t i = 0; i < length; i++)
-                ::new (newData + i) T(std::move(data[i]));
+            if constexpr (std::is_trivially_copyable_v<T>)
+            {
+                memmove(newData, data, loc * sizeof(T));
+                if (loc < length) // give the space for insertion
+                    memmove(newData + loc + elements.size(), data + loc, (length - loc) * sizeof(T));
+            }
+            else
+            {
+                for (size_t i = 0; i < loc; i++)
+                    ::new (newData + i) T{std::move(data[i])};
+                // if (loc < length) the for loop will handle the condition
+                for (size_t i = 0; i < length - loc; i++)
+                    ::new (newData + loc + elements.size() + i) T{std::move(data[loc + i])};
+            }
             capacity = newCapacity;
             ::operator delete(data);
             data = newData;
+            directly = true;
         }
 
-        for (size_t i = length; i > loc; i--)
-            ::new (data + i) T(std::move(data[i - 1]));
-        ::new (data + loc) T(element);
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            if (!directly) // move-right
+                memmove(data + loc + elements.size(), data + loc, elements.size() * sizeof(T));
+            memmove(data + loc, elements.begin(), elements.size() * sizeof(T));
+        }
+        else
+        {
+            if (!directly) // move-right
+                for (ptrdiff_t i = length - 1; i >= loc; i--)
+                    ::new (data + i + elements.size()) T{std::move(data[i])};
+            for (const T &ele : elements)
+                ::new (data + loc++) T{ele};
+        }
 
-        *const_cast<size_t *>(&length) = length + 1;
+        const_cast<ptrdiff_t &>(length) += elements.size();
+    }
+    //////////////////////////////////Variadic templates functions' end
+    ptrdiff_t _push(std::initializer_list<T> elements)
+    {
+        _insertAt(length, elements);
+        return length;
+    }
+    ptrdiff_t _unshift(std::initializer_list<T> elements)
+    {
+        _insertAt(0, elements);
+        return length;
     }
     //////////////////////////////////Wrapped data
-    size_t capacity{0};
+    ptrdiff_t capacity{0};
     T *data{nullptr};
 
 public:
-    //////////////////////////////////Variadic templates functions' end
-    template <class First>
-    size_t push(const First &element)
-    {
-        insertAt(length, element);
-        return length;
-    }
-    template <class First>
-    size_t unshift(const First &element)
-    {
-        insertAt(0, element);
-        return length;
-    }
     //////////////////////////////////ES Property
-    const size_t length{0};
+    const ptrdiff_t length{0};
     //////////////////////////////////Constructor
-    explicit RawArray(size_t size) : capacity{size}, data{(T *)(::operator new(capacity * sizeof(T)))}
+    explicit RawArray(ptrdiff_t size) : capacity{size}, length{size}, data{(T *)(::operator new(capacity * sizeof(T)))} {}
+    RawArray(const std::initializer_list<T> &elements) : capacity{(ptrdiff_t)elements.size()}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
-        size_t &_length = *const_cast<size_t *>(&length);
-        for (; _length < size; _length++)
-            ::new (data + _length) T();
-    }
-    RawArray(T *otherData, size_t size) : capacity{size}, data{(T *)(::operator new(capacity * sizeof(T)))}
-    {
-        size_t &_length = *const_cast<size_t *>(&length);
-        for (; _length < size; _length++)
-            ::new (data + _length) T(otherData[_length]);
-    }
-    RawArray(T *otherData, size_t size, size_t capacity) : length{size}, capacity{capacity}, data{otherData} {}
-    RawArray(const std::initializer_list<T> &elements) : capacity{elements.size()}, data{(T *)(::operator new(capacity * sizeof(T)))}
-    {
-        size_t &_length = *const_cast<size_t *>(&length);
-        for (const T &ele : elements)
-            ::new (data + _length++) T(ele);
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            const_cast<ptrdiff_t &>(length) = elements.size();
+            memmove(data, elements.begin(), length * sizeof(T));
+        }
+        else
+        {
+            ptrdiff_t &_length = const_cast<ptrdiff_t &>(length);
+            for (const T &ele : elements)
+                ::new (data + _length++) T{ele};
+        }
     }
     RawArray(const RawArray<T> &otherArray) : capacity{otherArray.capacity}, data{(T *)(::operator new(capacity * sizeof(T)))}
     {
-        size_t &_length = *const_cast<size_t *>(&length);
-        for (; _length < otherArray.length; _length++)
-            ::new (data + _length) T(*(otherArray.data + _length));
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            const_cast<ptrdiff_t &>(length) = otherArray.length;
+            memmove(data, otherArray.data, length * sizeof(T));
+        }
+        else
+        {
+            ptrdiff_t &_length = const_cast<ptrdiff_t &>(length);
+            for (; _length < otherArray.length; _length++)
+                ::new (data + _length) T{otherArray.data[_length]};
+        }
     }
     RawArray(RawArray<T> &&rvArray) : capacity{rvArray.capacity}, length{rvArray.length}, data{rvArray.data}
     {
         rvArray.data = nullptr;
     }
     //////////////////////////////////ES Method
-    template <typename First, typename... Rest>
-    size_t push(const First &element, const Rest &...elements)
+    template <typename... Rest>
+    ptrdiff_t push(const T &element, const Rest &...elements)
     {
-        push(element);
-        push(elements...);
+        _push(std::initializer_list<T>{element, elements...});
         return length;
     }
-    template <typename First, typename... Rest>
-    size_t unshift(const First &element, const Rest &...elements)
+    template <typename... Rest>
+    ptrdiff_t unshift(const T &element, const Rest &...elements)
     {
-        unshift(elements...);
-        unshift(element);
+        _unshift(std::initializer_list<T>{element, elements...});
         return length;
     }
     any pop()
@@ -99,7 +121,7 @@ public:
         if (length <= 0)
             return undefined;
         T last = std::move(data[length - 1]);
-        *const_cast<size_t *>(&length) = length - 1;
+        const_cast<ptrdiff_t &>(length)--;
         return last;
     }
     any shift()
@@ -109,10 +131,12 @@ public:
         T first = std::move(data[0]);
         if (length - 1 > 0)
         {
-            for (size_t i = 0; i < length - 1; i++)
-                ::new (data + i) T(std::move(data[i + 1]));
+            if constexpr (std::is_trivially_copyable_v<T>)
+                memmove(data, data + 1, (length - 1) * sizeof(T));
+            else
+                std::move(data + 1, data + length, data);
         }
-        *const_cast<size_t *>(&length) = length - 1;
+        const_cast<ptrdiff_t &>(length)--;
         return first;
     }
     any at(ptrdiff_t index) const
@@ -125,7 +149,7 @@ public:
     ptrdiff_t indexOf(const T &value, ptrdiff_t fromIndex = 0) const
     {
         (fromIndex < 0 && fromIndex > -length) && (fromIndex += length) || fromIndex < 0 && (fromIndex = 0);
-        for (size_t i = fromIndex; i < length; i++)
+        for (ptrdiff_t i = fromIndex; i < length; i++)
         {
             if (data[i] == value)
                 return i;
@@ -135,7 +159,7 @@ public:
     ptrdiff_t lastIndexOf(const T &value, ptrdiff_t fromIndex = -1) const
     {
         (fromIndex < 0 && fromIndex > -length) && (fromIndex += length) || fromIndex >= length && (fromIndex = length - 1);
-        for (size_t i = fromIndex; i >= 0; i--)
+        for (ptrdiff_t i = fromIndex; i >= 0; i--)
         {
             if (data[i] == value)
                 return i;
@@ -144,7 +168,7 @@ public:
     }
     bool includes(const T &value) const
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (data[i] == value)
                 return true;
@@ -154,72 +178,72 @@ public:
     std::string join(const char *separator = ",") const
     {
         std::stringstream ss;
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             ss << data[i] << (i == length - 1 ? "" : separator);
         }
         return ss.str();
     }
-    void forEach(const std::function<void(T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn)
+    void forEach(const std::function<void(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &callbackFn)
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
             callbackFn(data[i], i, std::ref(*this));
     }
-    bool some(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    bool some(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 return true;
         }
         return false;
     }
-    bool every(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    bool every(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (!predicate(data[i], i, std::ref(*this)))
                 return false;
         }
         return true;
     }
-    any find(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    any find(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 return data[i];
         }
         return undefined;
     }
-    any findLast(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    any findLast(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = length - 1; i >= 0; i--)
+        for (ptrdiff_t i = length - 1; i >= 0; i--)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 return data[i];
         }
         return undefined;
     }
-    ptrdiff_t findIndex(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    ptrdiff_t findIndex(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 return i;
         }
         return -1;
     }
-    ptrdiff_t findLastIndex(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    ptrdiff_t findLastIndex(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
-        for (size_t i = length - 1; i >= 0; i--)
+        for (ptrdiff_t i = length - 1; i >= 0; i--)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 return i;
         }
         return -1;
     }
-    T reduce(const std::function<T(T, T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduce(const std::function<T(T, T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length <= 0)
             return T{};
@@ -236,7 +260,7 @@ public:
             accumulator = callbackFn(accumulator, data[i], i, std::ref(*this));
         return accumulator;
     }
-    T reduceRight(const std::function<T(T, T, size_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
+    T reduceRight(const std::function<T(T, T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &callbackFn, const std::optional<T> &_initialValue = std::nullopt)
     {
         if (length <= 0)
             return T{};
@@ -253,29 +277,28 @@ public:
             accumulator = callbackFn(accumulator, data[i], i, std::ref(*this));
         return accumulator;
     }
-    RawArray<T> filter(const std::function<bool(T, size_t, std::reference_wrapper<RawArray<T>>)> &predicate)
+    RawArray<T> filter(const std::function<bool(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &predicate)
     {
         RawArray<T> filterArray(0);
-        size_t filterLength = 0;
-        for (size_t i = 0; i < length; i++)
+        for (ptrdiff_t i = 0; i < length; i++)
         {
             if (predicate(data[i], i, std::ref(*this)))
                 filterArray.push(data[i]);
         }
         return filterArray;
     }
-    RawArray<any> map(const std::function<any(T, size_t, std::reference_wrapper<RawArray<T>>)> &mapFn)
+    template <typename U>
+    RawArray<U> map(const std::function<U(T, ptrdiff_t, std::reference_wrapper<RawArray<T>>)> &mapFn)
     {
-        any *mapData = static_cast<any *>(::operator new(length * sizeof(any)));
-        for (size_t i = 0; i < length; i++)
-            ::new (mapData + i) any(mapFn(data[i], i, std::ref(*this)));
-        RawArray<any> mapArray(mapData, length, length);
+        RawArray<U> mapArray(0);
+        for (ptrdiff_t i = 0; i < length; i++)
+            mapArray.push(mapFn(data[i], i, std::ref(*this)));
         return mapArray;
     }
-    RawArray<T> concat(const RawArray<T> &otherArray)
+    RawArray<T> concat(const RawArray<T> &otherArray) const
     {
         RawArray<T> concatArray{*this};
-        for (size_t i = 0; i < otherArray.length; i++)
+        for (ptrdiff_t i = 0; i < otherArray.length; i++)
             concatArray.push(otherArray.data[i]);
         return concatArray;
     }
@@ -284,40 +307,55 @@ public:
         RawArray<T> sliceArray(0);
         ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
-        (end < 0 && end > -length) && (end += length);
-        end > length && (end = length);
+        (end < 0 && end > -length) && (end += length) || end > length && (end = length);
         if (start >= length || end <= start)
             return sliceArray;
-        for (size_t i = 0; i < end - start; i++)
+        for (ptrdiff_t i = 0; i < end - start; i++)
             sliceArray.push(data[start + i]);
         return sliceArray;
     }
-    RawArray<T> splice(ptrdiff_t start, std::optional<size_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
+    RawArray<T> splice(ptrdiff_t start, std::optional<ptrdiff_t> _deleteCount = std::nullopt, const std::initializer_list<T> &newElements = {})
     {
         RawArray<T> spliceArray(0);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
         if (start >= length)
             return spliceArray;
-        size_t deleteCount = (_deleteCount.has_value() ? *_deleteCount : length - start);
-        deleteCount > length - start && (deleteCount = length - start);
-        deleteCount < 0 && (deleteCount = 0);
-        size_t restNum = length - start - deleteCount;
+        ptrdiff_t deleteCount = (_deleteCount.has_value() ? *_deleteCount : length - start);
+        deleteCount > length - start && (deleteCount = length - start) || deleteCount < 0 && (deleteCount = 0);
+        ptrdiff_t restNum = length - start - deleteCount;
+        bool insertDirectly = true;
         if (deleteCount > 0)
         {
             ::operator delete(spliceArray.data);
             T *deleteData = (T *)(::operator new(deleteCount * sizeof(T)));
-            for (size_t i = 0; i < deleteCount; i++)
-                ::new (deleteData + i) T(std::move(data[start + i]));
+            // move the to-be-delete-data to the 'deleteData'
+            if constexpr (std::is_trivially_copyable_v<T>)
+                memmove(deleteData, data + start, deleteCount * sizeof(T));
+            else
+                for (ptrdiff_t i = 0; i < deleteCount; i++)
+                    ::new (deleteData + i) T{std::move(data[start + i])};
             spliceArray.capacity = deleteCount;
-            *const_cast<size_t *>(&spliceArray.length) = deleteCount;
+            *const_cast<ptrdiff_t *>(&spliceArray.length) = deleteCount;
             spliceArray.data = deleteData;
-            for (size_t i = 0; i < restNum; i++)
-                ::new (data + start + i) T(std::move(data[start + i + deleteCount]));
-            *const_cast<size_t *>(&length) = length - deleteCount;
+            // move the rest data left to fill deleted data
+            if constexpr (std::is_trivially_copyable_v<T>)
+                memmove(data + start + newElements.size(), data + deleteCount, restNum * sizeof(T));
+            else
+            {
+                if (newElements.size() > deleteCount) // should have move-right, but for the reason of potential resizing, just move-left to connect
+                {
+                    for (ptrdiff_t i = start; i < start + restNum; i++) // act like newElements.size() == 0
+                        ::new (data + i) T{std::move(data[i + deleteCount])};
+                    insertDirectly = false;
+                }
+                else if (newElements.size() < deleteCount) // move-left
+                    for (ptrdiff_t i = start + newElements.size(); i < start + restNum; i++)
+                        ::new (data + i) T{std::move(data[i + deleteCount - newElements.size()])};
+                // if newElements.size() equals to deleteCount, there is no moving
+                const_cast<ptrdiff_t &>(length) -= deleteCount;
+            }
         }
-        size_t loc = 0;
-        for (const T &ele : newElements)
-            insertAt(start + loc++, std::move(ele));
+        _insertAt(start, newElements, insertDirectly);
         return spliceArray;
     }
     RawArray<T> &reverse()
@@ -325,10 +363,10 @@ public:
         std::reverse(data, data + length);
         return *this;
     }
-    RawArray<T> &sort(std::optional<const std::function<ptrdiff_t(T, T)>> _compareFn = std::nullopt)
+    RawArray<T> &sort(const std::optional<std::function<ptrdiff_t(T, T)>> &_compareFn = std::nullopt)
     {
         if (!_compareFn.has_value())
-            std::sort(data, data + length, std::less<T>());
+            std::sort(data, data + length, std::less<T>{});
         else
         {
             auto &compareFn = *_compareFn;
@@ -342,42 +380,36 @@ public:
         ptrdiff_t end = (_end.has_value() ? *_end : length);
         (target < 0 && target > -length) && (target += length) || target < 0 && (target = 0);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
-        (end < 0 && end > -length) && (end += length);
-        end > length && (end = length);
+        (end < 0 && end > -length) && (end += length) || end > length && (end = length);
         if (target >= length || start >= length || end <= start || target == start)
             return *this;
-        size_t dist = std::min(end - start, end - target);
-        T *tmp = (T *)(::operator new(dist * sizeof(T)));
-        for (size_t i = 0; i < dist; i++)
-            ::new (tmp + i) T(std::move(data[start + i]));
-        for (size_t i = 0; i < dist; i++)
+        ptrdiff_t dist = std::min(end - start, end - target);
+        if constexpr (std::is_trivially_copyable_v<T>)
+            memmove(data + target, data + start, dist * sizeof(T));
+        else
         {
-            (data + target + i)->~T();
-            ::new (data + target + i) T(std::move(tmp[i]));
+            if (target > start)
+                std::copy_backward(data + start, data + start + dist, data + target);
+            else
+                std::copy(data + start, data + start + dist, data + target);
         }
-        ::operator delete(tmp);
         return *this;
     }
     RawArray<T> &fill(const T &value, ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt)
     {
         ptrdiff_t end = (_end.has_value() ? *_end : length);
         (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
-        (end < 0 && end > -length) && (end += length);
-        end > length && (end = length);
-        for (size_t i = start; i < end; i++)
-        {
-            (data + i)->~T();
-            ::new (data + i) T(value);
-        }
+        (end < 0 && end > -length) && (end += length) || end > length && (end = length);
+        for (ptrdiff_t i = start; i < end; i++)
+            data[i] = value;
         return *this;
     }
     //////////////////////////////////Operator
-    T &operator[](size_t index)
+    T &operator[](ptrdiff_t index)
     {
         if (index >= length)
         {
-            size_t oldLength = length;
-            for (size_t i = length; i < index + 1; i++)
+            for (ptrdiff_t i = length; i < index + 1; i++)
                 push(T{});
         }
         else if (index < 0)
@@ -390,24 +422,30 @@ public:
             return *this;
         if (capacity < otherArray.length)
         {
-            ~RawArray();
-            capacity = otherArray.length;
-            ::operator new(capacity * sizeof(T));
+            ptrdiff_t newCapacity = otherArray.capacity;
+            T *newData = (T *)(::operator new(newCapacity * sizeof(T)));
+            capacity = newCapacity;
+            for (ptrdiff_t i = 0; i < length; i++)
+                (data + i)->~T();
+            ::operator delete(data);
+            data = newData;
         }
         else
         {
-            for (size_t i = 0; i < length; i++)
+            for (ptrdiff_t i = 0; i < length; i++)
                 (data + i)->~T();
         }
-        *const_cast<size_t *>(&length) = otherArray.length;
-        for (size_t i = 0; i < length; i++)
-            ::new (data + i) T(otherArray.data[i]);
+        *const_cast<ptrdiff_t *>(&length) = otherArray.length;
+        if constexpr (std::is_trivially_copyable_v<T>)
+            memmove(data, otherArray.data, length * sizeof(T));
+        else
+            std::copy(otherArray.data, otherArray.data + length, data);
         return *this;
     }
     RawArray<T> &operator=(RawArray<T> &&rvArray)
     {
         capacity = rvArray.capacity;
-        *const_cast<size_t *>(&length) = rvArray.length;
+        *const_cast<ptrdiff_t *>(&length) = rvArray.length;
         std::swap(data, rvArray.data);
         return *this;
     }
@@ -417,7 +455,7 @@ public:
         if (array.length > 1)
             os << "\n(" << array.length << ") ";
         os << "[";
-        for (size_t i = 0; i < array.length; i++)
+        for (ptrdiff_t i = 0; i < array.length; i++)
         {
             os << data[i] << (i == array.length - 1 ? "" : ", ");
         }
@@ -429,7 +467,7 @@ public:
     {
         if (data)
         {
-            for (size_t i = 0; i < length; i++)
+            for (ptrdiff_t i = 0; i < length; i++)
                 (data + i)->~T();
             ::operator delete(data);
         }

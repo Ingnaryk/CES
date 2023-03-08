@@ -18,7 +18,7 @@ cpl_cmd  = gcc -g -c $$< -I $(INC_DIR) -o $$@ $(CFLAG)
 
 ##
 all: $(objects)
-	g++ -g $(filter-out $(depends),$^) -o $(MAIN_DIR)/$(target).exe
+	g++ -g $^ -o $(MAIN_DIR)/$(target).exe
 
 $(depends):
 	@./deps.exe $(depends) $(INC_DIR) $(OBJ_DIR) "$(cpl_cmd)" $(sources)

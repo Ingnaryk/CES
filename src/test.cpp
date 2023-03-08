@@ -1,6 +1,6 @@
-#include "any.h"
-#include "RawArray.h"
 #include "StdArray.h"
+#include "RawArray.h"
+#include "RawList.h"
 #include "async.h"
 #include "timer.h"
 #include "string.h"
@@ -8,8 +8,14 @@
 
 namespace test
 {
+    int testType::ctor = 0;
+    int testType::cctor = 0;
+    int testType::mctor = 0;
+    int testType::cass = 0;
+    int testType::mass = 0;
+    int testType::dtor = 0;
 
-    void demo_StdArray_RawArray()
+    void demo_StdArray_RawArray_RawList()
     {
         static auto testArray_spesific = [](auto &arr)
         {
@@ -80,7 +86,7 @@ namespace test
                                                                                                100)
                       << std::endl;
             //------------------------reduceRight
-            std::cout << "the product of numbers in arr meanwhile adding their index(from right side) is " << arr.reduceRight([](any a, any b, size_t crtIndex, ...)
+            std::cout << "the product of numbers in arr meanwhile adding their index(from right side) is " << arr.reduceRight([](any a, any b, ptrdiff_t crtIndex, ...)
                                                                                                                               { any r = std::get<int>(a) * std::get<int>(b);
                                                                                                               return std::get<int>(r) += crtIndex; })
                       << std::endl;
@@ -91,11 +97,11 @@ namespace test
                       << std::endl;
             //------------------------map
             std::cout << "the array that equals each number in arr multiplied by 0.3\n"
-                      << arr.map([](any value, ...)
-                                 { return (double)(std::get<int>(value) * 0.3); })
+                      << arr.template map<double>([](any value, ...)
+                                                  { return (double)(std::get<int>(value) * 0.3); })
                       << std::endl;
             //------------------------concat
-            std::cout << "the array that euquals arr concated with {\"str\", 0.5, false}\n"
+            std::cout << "arr.concat({\"str\", 0.5, false}) returns\n"
                       << arr.concat({"str", 0.5, false}) << std::endl;
             //------------------------slice
             std::cout << "the array that equals the slice of arr within index [1, 4)\n"
@@ -125,7 +131,7 @@ namespace test
             std::cout << "arr[9] = -5, and now arr is\n"
                       << arr << std::endl;
         };
-        timer::outputBuffer = 2;
+        timer::outputBuffer = 3;
         {
             timer t("StdArray<any> demo");
             StdArray<any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
@@ -137,14 +143,20 @@ namespace test
             RawArray<any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
             testArray_spesific(arr);
         }
+        std::cout << "\n\n";
+        {
+            timer t("RawList<any> demo");
+            RawList<any> arr = {3.5, true, 2147483648, nullptr, "this is string"};
+            testArray_spesific(arr);
+        }
     }
 
-    void test_StdArray_stdlist()
+    void test_RawList_stdlist()
     {
         timer::outputBuffer = 2;
         {
-            timer t("StdArray<int> adding 10k elements back and front continuously");
-            StdArray<int> a{1, 3, 5, 7, 9};
+            timer t("RawList<int> adding 20k elements back and front continuously");
+            RawList<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 10000; i++)
             {
                 a.push(a[i % a.length]);
@@ -152,7 +164,7 @@ namespace test
             }
         }
         {
-            timer t("std::list<int> adding 10k elements back and front continuously");
+            timer t("std::list<int> adding 20k elements back and front continuously");
             std::list<int> a{1, 3, 5, 7, 9};
             for (int i = 0; i < 10000; i++)
             {
@@ -168,38 +180,79 @@ namespace test
 
     void test_RawArray_stdvector()
     {
-        timer::outputBuffer = 2;
+
+        timer::outputBuffer = 6;
         {
-            timer t("RawArray<int> adding 100k elements back continuously");
+            timer t("RawArray<int> adding 30k elements back and front continuously");
             RawArray<int> a{1, 3, 5, 7, 9};
-            for (int i = 0; i < 100000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 a.push(a[i % a.length]);
+                a.unshift(i, (int)a.length);
             }
         }
         {
-            timer t("std::vector<int> adding 100k elements back continuously");
+            timer t("std::vector<int> adding 30k elements back and front continuously");
             std::vector<int> a{1, 3, 5, 7, 9};
-            for (int i = 0; i < 100000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 a.emplace_back(a[i % a.size()]);
+                a.insert(a.begin(), {i, (int)a.size()});
+            }
+        }
+        {
+            timer t("RawArray<testType> adding 3k elements back and front continuously");
+            RawArray<testType> a{1, 3, 5, 7, 9};
+            for (int i = 0; i < 1000; i++)
+            {
+                a.push(a[i % a.length]);
+                a.unshift(i, (int)a.length);
+            }
+            std::cout << testType::ctor << '\t' << testType::cctor << '\t' << testType::mctor << '\t' << testType::cass << '\t' << testType::mass << '\t' << testType::dtor << "\nTotal: " << testType::ctor + testType::cctor + testType::mctor + testType::cass + testType::mass + testType::dtor << '\n';
+        }
+        testType::ctor = testType::cctor = testType::mctor = testType::cass = testType::mass = testType::dtor = 0;
+        {
+            timer t("std::vector<testType> adding 3k elements back and front continuously");
+            std::vector<testType> a{1, 3, 5, 7, 9};
+            for (int i = 0; i < 1000; i++)
+            {
+                a.emplace_back(a[i % a.size()]);
+                a.insert(a.begin(), {i, (int)a.size()});
+            }
+            std::cout << testType::ctor << '\t' << testType::cctor << '\t' << testType::mctor << '\t' << testType::cass << '\t' << testType::mass << '\t' << testType::dtor << "\nTotal: " << testType::ctor + testType::cctor + testType::mctor + testType::cass + testType::mass + testType::dtor << '\n';
+        }
+        {
+            timer t("RawArray<std::string> adding 3k elements back and front continuously");
+            RawArray<std::string> a{"1", "3", "5", "7", "9"};
+            for (int i = 0; i < 1000; i++)
+            {
+                a.push(a[i % a.length]);
+                a.unshift(std::to_string(i), std::to_string(a.length));
+            }
+        }
+        {
+            timer t("std::vector<std::string> adding 3k elements back and front continuously");
+            std::vector<std::string> a{"1", "3", "5", "7", "9"};
+            for (int i = 0; i < 1000; i++)
+            {
+                a.emplace_back(a[i % a.size()]);
+                a.insert(a.begin(), {std::to_string(i), std::to_string(a.size())});
             }
         }
     }
 
     void testAsync()
     {
-        AsyncFunction<std::string, any> f(
-            [&](any data)
+        AsyncFunction<std::string> f(
+            []()
             {
                 std::this_thread::sleep_for(1000ms);
-                auto type = std::visit([](auto &v)
-                                       { return typeid(v).name(); },
-                                       data);
-                return std::string("typeof data is ").append(type);
+                std::string s;
+                std::cin >> s;
+                return s;
             });
-        f(nullptr).then([](std::string rst)
-                        { std::cout << rst << std::endl; });
+        f().then([](std::string rst)
+                 { std::cout << rst << std::endl; });
     }
 
     void testString()

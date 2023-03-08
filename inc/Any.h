@@ -16,14 +16,14 @@
 using any = std::variant<void *, int, long long, bool, double, std::string>;
 
 // visitor helper
-template <class... Ts>
+template <typename... Ts>
 struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
 #if __cplusplus < 202002L
 // explicit deduction guide (not needed as of C++20)
-template <class... Ts>
+template <typename... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 #endif
 
