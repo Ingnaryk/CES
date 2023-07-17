@@ -83,17 +83,17 @@ namespace CES
         Array(const Array &other) : data{other.data}, length{other.length} {}
         Array(Array &&other) noexcept : data{std::move(other.data)}, length{std::exchange(const_cast<ptrdiff_t &>(other.length), 0)} {}
         //////////////////////////////////ES Method
-        template <typename Arg, typename... Args>
-        constexpr ptrdiff_t push(Arg &&element, Args &&...elements)
+        template <typename... Args>
+        constexpr ptrdiff_t push(Args &&...elements)
         {
-            data.insert(data.end(), std::initializer_list<T>{std::forward<Arg>(element), std::forward<Args>(elements)...});
+            data.insert(data.end(), std::initializer_list<T>{std::forward<Args>(elements)...});
             const_cast<ptrdiff_t &>(length) = data.size();
             return length;
         }
-        template <typename Arg, typename... Args>
-        constexpr ptrdiff_t unshift(Arg &&element, Args &&...elements)
+        template <typename... Args>
+        constexpr ptrdiff_t unshift(Args &&...elements)
         {
-            data.insert(data.begin(), std::initializer_list<T>{std::forward<Arg>(element), std::forward<Args>(elements)...});
+            data.insert(data.begin(), std::initializer_list<T>{std::forward<Args>(elements)...});
             const_cast<ptrdiff_t &>(length) = data.size();
             return length;
         }
