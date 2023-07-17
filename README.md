@@ -1,5 +1,5 @@
 # CES
-A simple C++ implements for part of ECMAScript data structures and async grammar.
+A simple C++ wrapper for part of ECMAScript data structures and async grammar.
 
 ### The purpose for this repository
 - Better comprehension of data structures.
