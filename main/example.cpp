@@ -1,23 +1,25 @@
 #include <iostream>
 
-#include "test.h"
+#include "test/test.h"
 
 int main()
 {
-     std::boolalpha(std::cout);
-#define ARRAY_TEST 1
-#define ASYNC_TEST 0
-#define STRING_TEST 0
-#if ARRAY_TEST
-     test::demo_StdArray_RawArray_RawList();
-     // test::test_RawList_stdlist();
-     test::test_RawArray_stdvector();
-#endif // ARRAY_TEST
-#if ASYNC_TEST
-     test::testAsync();
-#endif // ASYNC_TEST
-#if STRING_TEST
-     test::testString();
-#endif // STRING_TEST
-     return 0;
+    std::boolalpha(std::cout);
+#define ARRAY_DEMO 0
+#define MAP_DEMO 0
+#define STRING_DEMO 1
+#define ASYNC_DEMO 0
+#if ARRAY_DEMO
+    test::demo_Array();
+#endif // ARRAY_DEMO
+#if MAP_DEMO
+    test::demo_Map();
+#endif // MAP_DEMO
+#if STRING_DEMO
+    test::demo_String();
+#endif // STRING_DEMO
+#if ASYNC_DEMO
+    test::demo_async();
+#endif // ASYNC_DEMO
+    return 0;
 }

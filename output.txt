@@ -1,0 +1,138 @@
+display arr (CES::Array)
+
+(5) [3.500000, true, 2147483648, undefined, "this is string"]
+
+int num = 13, arr.push(&num) returns 6, and arr is
+
+(6) [3.500000, true, 2147483648, undefined, "this is string", address(0x78883ff10c)]
+
+arr.unshift(-6, 2147483648) returns 8, and arr is
+
+(8) [-6, 2147483648, 3.500000, true, 2147483648, undefined, "this is string", address(0x78883ff10c)]
+
+arr.pop() returns address(0x78883ff10c), and arr is
+
+(7) [-6, 2147483648, 3.500000, true, 2147483648, undefined, "this is string"]
+
+arr.shift() returns -6, and arr is
+
+(6) [2147483648, 3.500000, true, 2147483648, undefined, "this is string"]
+
+arr.at(2) returns true, and arr.at(-1) returns "this is string"
+arr.indexOf(2147483648) returns 0
+arr.lastIndexOf(2147483648) returns 3
+arr.includes(8) returns false
+arr.join() is
+
+2147483648,3.500000,true,2147483648,undefined,this is string
+
+a.join(" + ") is
+
+2147483648 + 3.500000 + true + 2147483648 + undefined + this is string
+
+arr = {1, 5, 3, 7, 8, 9} and the square of each value is
+
+1 25 9 49 64 81 
+
+'even number exists in arr' is true
+'all the numbers in arr are positive' is true
+the first number in arr which is larger than 5 is 7
+the last number in arr which is smaller than 9 is 8
+the index of first number in arr which is larger than 5 is 3
+the index of last number in arr which is smaller than 9 is 4
+the sum of numbers in arr(with initial value 100) is 133
+the product of numbers in arr meanwhile adding their index(from right side) is 8036
+the array that contains the numbers larger than 3 in arr
+
+(4) [5, 7, 8, 9]
+
+the array that equals each number in arr multiplied by 0.3
+
+(6) [0.300000, 1.500000, 0.900000, 2.100000, 2.400000, 2.700000]
+
+arr.concat({"str", 0.5, false}) returns
+
+(9) [1, 5, 3, 7, 8, 9, "str", 0.500000, false]
+
+the array that equals the slice of arr within index [1, 4)
+
+(3) [5, 3, 7]
+
+slice arr from index 1, delete 2 elements and splice with {-1, -2, -3} returns
+
+(2) [5, 3]
+
+and arr is
+
+(7) [1, -1, -2, -3, 7, 8, 9]
+
+reverse arr
+
+(7) [9, 8, 7, -3, -2, -1, 1]
+
+sort arr by default order
+
+(7) [-3, -2, -1, 1, 7, 8, 9]
+
+and sort arr by descending order
+
+(7) [9, 8, 7, 1, -1, -2, -3]
+
+copy the numbers in arr within index [4, 6) to target index 0
+
+(7) [-1, -2, 7, 1, -1, -2, -3]
+
+fill arr with value 10 within index [0, 3)
+
+(7) [10, 10, 10, 1, -1, -2, -3]
+
+arr[9] = -5, and now arr is
+
+(10) [10, 10, 10, 1, -1, -2, -3, undefined, undefined, -5]
+
+display map (CES::Map)
+
+Map(2) {-5 => -985.211, 2 => 6.6}
+
+map.get(2) returns 6.600000
+map.get(789) returns undefined
+map.has(-5) returns true
+map.Delete(1) returns false
+map.Delete(-5) returns true, now map is
+
+Map(1) {2 => 6.600000}
+
+after map.clear(), display map
+
+Map(0) {size: 0}
+
+display map
+
+Map(2) {-5 => 4.300000, 72 => -75.500000}
+
+each element of map plus its key
+
+-0.700000 -3.500000 
+
+m.keys() returns
+
+(2) [-5, 72]
+
+map.values() returns
+
+(2) [4.300000, -75.500000]
+
+map.entries() returns
+
+(2) [(-5, 4.300000), (72, -75.500000)]
+
+str = 我？我是Tom, str.length = 7
+str.charAt(0) = 我
+str.charCodeAt(3) = 是: 26159
+str.concat({"，", "你叫什么名字？"}) = 我？我是Tom，你叫什么名字？ 
+str.startsWith("我", 2) = true, but str.startsWith("我", 3) = false
+str.endsWith("m", 6) = false, but str.endsWith("m", 7) = true      
+str.replace("我", "他") = 他？他是Tom
+str.slice(1, 7) = ？我是Tom
+str.substring(-100, 2) = 我？, and str.substring(2, -100) = 我？   
+str.substr(1, 1) = ？

@@ -1,3 +1,6 @@
 *.o
-example.exe
+example.*
+!example.cpp
 .depends
+build
+/.vscode
