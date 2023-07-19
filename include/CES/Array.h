@@ -22,12 +22,12 @@ namespace CES
             if constexpr (std::is_invocable_r_v<R, ESCallback, T>)
                 return func;
             else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t>)
-                return [func, startIndex](const T &value) mutable -> R
+                return [func = std::forward<ESCallback>(func), startIndex](const T &value) mutable -> R
                 {
                     return func(value, reverse ? startIndex-- : startIndex++);
                 };
             else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t, Array<T> &>)
-                return [func, startIndex, this](const T &value) mutable -> R
+                return [func = std::forward<ESCallback>(func), startIndex, this](const T &value) mutable -> R
                 {
                     return func(value, reverse ? startIndex-- : startIndex++, std::ref(*this));
                 };
@@ -41,12 +41,12 @@ namespace CES
             if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T>)
                 return func;
             else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t>)
-                return [func, startIndex](const Init &initial, const T &value) mutable -> Init
+                return [func = std::forward<ESCallback>(func), startIndex](const Init &initial, const T &value) mutable -> Init
                 {
                     return func(initial, value, reverse ? startIndex-- : startIndex++);
                 };
             else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t, Array<T> &>)
-                return [func, startIndex, this](const Init &initial, const T &value) mutable -> Init
+                return [func = std::forward<ESCallback>(func), startIndex, this](const Init &initial, const T &value) mutable -> Init
                 {
                     return func(initial, value, reverse ? startIndex-- : startIndex++, std::ref(*this));
                 };
@@ -320,7 +320,7 @@ namespace CES
         template <typename ESCallback>
         constexpr Array<T> &sort(ESCallback &&compareFn)
         {
-            std::sort(data.begin(), data.end(), [&compareFn](const T &a, const T &b)
+            std::sort(data.begin(), data.end(), [compareFn = std::forward<ESCallback>(compareFn)](const T &a, const T &b)
                       { return compareFn(a, b) < 0; });
             return *this;
         }
