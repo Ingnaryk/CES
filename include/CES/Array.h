@@ -62,7 +62,7 @@ namespace CES
         explicit Array(ptrdiff_t size) : data(size), length{size} {}
         Array(std::initializer_list<T> elements) : data{elements}
         {
-            if (elements.size() > INT64_MAX)
+            if (elements.size() > INT64_MAX) [[unlikely]]
                 throw std::overflow_error("Array length is too large!");
             const_cast<ptrdiff_t &>(length) = (ptrdiff_t)elements.size();
         }
@@ -70,7 +70,7 @@ namespace CES
         Array(Iter begin, Iter end) : data{begin, end}
         {
             auto size = std::ranges::distance(begin, end);
-            if (size > INT64_MAX)
+            if (size > INT64_MAX) [[unlikely]]
                 throw std::overflow_error("Array length is too large!");
             const_cast<ptrdiff_t &>(length) = (ptrdiff_t)size;
         }
