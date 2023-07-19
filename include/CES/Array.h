@@ -15,47 +15,41 @@ namespace CES
     {
     private:
         //////////////////////////////////Internal usage
-        enum class Direction
-        {
-            Forward,
-            Backward
-        };
-        template <typename R, Direction dir = Direction::Forward, typename ESCallback>
+        template <typename R, bool reverse = false, typename ESCallback>
         constexpr auto basicAdaptor(ESCallback &&func)
         {
-            constexpr bool reverse = dir == Direction::Backward;
-            return [&, index = reverse ? length - 1 : 0LL](const T &value) mutable -> R
-            {
-                if constexpr (std::is_invocable_r_v<R, ESCallback, T>)
-                    return func(value);
-                else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t>)
-                    return func(value, reverse ? index-- : index++);
-                else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t, Array<T> &>)
-                    return func(value, reverse ? index-- : index++, *this);
-            };
+            ptrdiff_t startIndex = reverse ? length - 1 : 0LL;
+            if constexpr (std::is_invocable_r_v<R, ESCallback, T>)
+                return func;
+            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t>)
+                return [func, startIndex](const T &value) mutable -> R
+                {
+                    return func(value, reverse ? startIndex-- : startIndex++);
+                };
+            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t, Array<T> &>)
+                return [func, startIndex, this](const T &value) mutable -> R
+                {
+                    return func(value, reverse ? startIndex-- : startIndex++, std::ref(*this));
+                };
         }
-        enum class ReduceFlag
-        {
-            Initial,
-            NonInitial
-        };
-        template <typename R, ReduceFlag flag, Direction dir = Direction::Forward, typename ESCallback>
+        template <typename R, bool hasInitialValue, bool reverse = false, typename ESCallback>
         constexpr auto reduceAdaptor(ESCallback &&func)
         {
-            constexpr bool reverse = dir == Direction::Backward;
-            constexpr bool hasInitialValue = flag == ReduceFlag::Initial;
             ptrdiff_t startIndex = reverse ? (hasInitialValue ? length - 1 : length - 2)
                                            : (hasInitialValue ? 0LL : 1LL);
             using Init = std::conditional_t<hasInitialValue, R, T>;
-            return [&, index = startIndex](const Init &initial, const T &value) mutable -> Init
-            {
-                if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T>)
-                    return func(initial, value);
-                else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t>)
-                    return func(initial, value, reverse ? index-- : index++);
-                else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t, Array<T> &>)
-                    return func(initial, value, reverse ? index-- : index++, *this);
-            };
+            if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T>)
+                return func;
+            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t>)
+                return [func, startIndex](const Init &initial, const T &value) mutable -> Init
+                {
+                    return func(initial, value, reverse ? startIndex-- : startIndex++);
+                };
+            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t, Array<T> &>)
+                return [func, startIndex, this](const Init &initial, const T &value) mutable -> Init
+                {
+                    return func(initial, value, reverse ? startIndex-- : startIndex++, std::ref(*this));
+                };
         }
         //////////////////////////////////Wrapped data
         std::vector<T> data{};
@@ -185,7 +179,7 @@ namespace CES
                    (std::ranges::find_if(
                         data.rbegin(),
                         data.rend(),
-                        basicAdaptor<bool, Direction::Backward>(std::forward<ESCallback>(predicate))) -
+                        basicAdaptor<bool, true>(std::forward<ESCallback>(predicate))) -
                     data.rbegin());
         }
         template <typename ESCallback>
@@ -211,7 +205,7 @@ namespace CES
                 data.begin() + 1,
                 data.end(),
                 data.front(),
-                reduceAdaptor<T, ReduceFlag::NonInitial>(std::forward<ESCallback>(reduceFn)));
+                reduceAdaptor<T, false>(std::forward<ESCallback>(reduceFn)));
         }
         template <typename U, typename ESCallback>
         constexpr U reduce(ESCallback &&reduceFn, U initialValue)
@@ -222,7 +216,7 @@ namespace CES
                 data.begin(),
                 data.end(),
                 std::forward<U>(initialValue),
-                reduceAdaptor<U, ReduceFlag::Initial>(std::forward<ESCallback>(reduceFn)));
+                reduceAdaptor<U, true>(std::forward<ESCallback>(reduceFn)));
         }
         template <typename ESCallback>
         constexpr T reduceRight(ESCallback &&reduceFn)
@@ -235,7 +229,7 @@ namespace CES
                 data.rbegin() + 1,
                 data.rend(),
                 data.back(),
-                reduceAdaptor<T, ReduceFlag::NonInitial, Direction::Backward>(std::forward<ESCallback>(reduceFn)));
+                reduceAdaptor<T, false, true>(std::forward<ESCallback>(reduceFn)));
         }
         template <typename U, typename ESCallback>
         constexpr U reduceRight(ESCallback &&reduceFn, U initialValue)
@@ -246,7 +240,7 @@ namespace CES
                 data.rbegin(),
                 data.rend(),
                 std::forward<U>(initialValue),
-                reduceAdaptor<U, ReduceFlag::NonInitial, Direction::Backward>(std::forward<ESCallback>(reduceFn)));
+                reduceAdaptor<U, true, true>(std::forward<ESCallback>(reduceFn)));
         }
         constexpr Array<T> concat(const Array<T> &otherArray) const
         {
