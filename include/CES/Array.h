@@ -93,14 +93,14 @@ namespace CES
         }
         constexpr T pop()
         {
-            T back = data.back();
+            T back = std::move(data.back());
             data.pop_back();
             const_cast<ptrdiff_t &>(length) -= 1;
             return back;
         }
         constexpr T shift()
         {
-            T front = data.front();
+            T front = std::move(data.front());
             data.erase(data.begin());
             const_cast<ptrdiff_t &>(length) -= 1;
             return front;
