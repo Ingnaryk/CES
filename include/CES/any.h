@@ -1,11 +1,9 @@
-#ifndef _ANY_H_
-#define _ANY_H_
+#pragma once
 
 #include <variant>
 #include <functional>
 #include <optional>
 #include <string>
-#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <utility>
@@ -28,5 +26,3 @@ constexpr std::ostream &operator<<(std::ostream &os, const std::pair<First, Seco
 {
     return (os << "(" << pair.first << ", " << pair.second << ")");
 }
-
-#endif // _ANY_H_

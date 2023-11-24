@@ -14,11 +14,10 @@ namespace CES
                        { return str; },
                        [](void *ptr)
                        {
+                           if (ptr == nullptr)
+                               return "undefined"s;
                            char buffer[32];
-                           if (ptr != nullptr)
-                               sprintf(buffer, "%p", ptr);
-                           else
-                               strcpy(buffer, "undefined");
+                           sprintf(buffer, "%p", ptr);
                            return std::string{buffer};
                        }},
             value);

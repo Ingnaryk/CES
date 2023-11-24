@@ -1,10 +1,9 @@
-#ifndef _ARRAY_H_
-#define _ARRAY_H_
+#pragma once
 
 #include <vector>
 #include <ranges>
 #include <numeric>
-#include <cstdint>
+#include <limits>
 
 #include "CES/any.h"
 
@@ -13,20 +12,22 @@ namespace CES
     template <typename T>
     class Array
     {
+        using index_type = ptrdiff_t;
+
     private:
         //////////////////////////////////Internal usage
         template <typename R, bool reverse = false, typename ESCallback>
         constexpr auto basicAdaptor(ESCallback &&func)
         {
-            ptrdiff_t startIndex = reverse ? length - 1 : 0LL;
+            index_type startIndex = reverse ? length - 1 : 0LL;
             if constexpr (std::is_invocable_r_v<R, ESCallback, T>)
                 return func;
-            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t>)
+            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, index_type>)
                 return [func = std::forward<ESCallback>(func), startIndex](const T &value) mutable -> R
                 {
                     return func(value, reverse ? startIndex-- : startIndex++);
                 };
-            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, ptrdiff_t, Array<T> &>)
+            else if constexpr (std::is_invocable_r_v<R, ESCallback, T, index_type, Array<T> &>)
                 return [func = std::forward<ESCallback>(func), startIndex, this](const T &value) mutable -> R
                 {
                     return func(value, reverse ? startIndex-- : startIndex++, std::ref(*this));
@@ -35,163 +36,162 @@ namespace CES
         template <typename R, bool hasInitialValue, bool reverse = false, typename ESCallback>
         constexpr auto reduceAdaptor(ESCallback &&func)
         {
-            ptrdiff_t startIndex = reverse ? (hasInitialValue ? length - 1 : length - 2)
-                                           : (hasInitialValue ? 0LL : 1LL);
+            index_type startIndex = reverse ? (hasInitialValue ? length - 1 : length - 2)
+                                            : (hasInitialValue ? 0LL : 1LL);
             using Init = std::conditional_t<hasInitialValue, R, T>;
             if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T>)
                 return func;
-            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t>)
+            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, index_type>)
                 return [func = std::forward<ESCallback>(func), startIndex](const Init &initial, const T &value) mutable -> Init
                 {
                     return func(initial, value, reverse ? startIndex-- : startIndex++);
                 };
-            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, ptrdiff_t, Array<T> &>)
+            else if constexpr (std::is_invocable_r_v<Init, ESCallback, Init, T, index_type, Array<T> &>)
                 return [func = std::forward<ESCallback>(func), startIndex, this](const Init &initial, const T &value) mutable -> Init
                 {
                     return func(initial, value, reverse ? startIndex-- : startIndex++, std::ref(*this));
                 };
         }
         //////////////////////////////////Wrapped data
-        std::vector<T> data{};
+        std::vector<T> m_data{};
 
     public:
         //////////////////////////////////ES Property
-        const ptrdiff_t length{0};
+        const index_type length{0};
         //////////////////////////////////Constructor
         Array() noexcept = default;
-        explicit Array(ptrdiff_t size) : data(size), length{size} {}
-        Array(std::initializer_list<T> elements) : data{elements}
+        explicit Array(index_type size) : m_data(size), length{size} {}
+        Array(std::initializer_list<T> elements) : m_data{elements}
         {
-            if (elements.size() > INT64_MAX) [[unlikely]]
+            if (elements.size() > std::numeric_limits<index_type>::max()) [[unlikely]]
                 throw std::overflow_error("Array length is too large!");
-            const_cast<ptrdiff_t &>(length) = (ptrdiff_t)elements.size();
+            const_cast<index_type &>(length) = static_cast<index_type>(elements.size());
         }
-        template <typename Iter>
-        Array(Iter begin, Iter end) : data{begin, end}
+        template <std::input_iterator InputIt>
+        Array(InputIt begin, InputIt end) : m_data{begin, end}
         {
             auto size = std::ranges::distance(begin, end);
-            if (size > INT64_MAX) [[unlikely]]
+            if (size > std::numeric_limits<index_type>::max()) [[unlikely]]
                 throw std::overflow_error("Array length is too large!");
-            const_cast<ptrdiff_t &>(length) = (ptrdiff_t)size;
+            const_cast<index_type &>(length) = static_cast<index_type>(size);
         }
-        Array(const Array &other) : data{other.data}, length{other.length} {}
-        Array(Array &&other) noexcept : data{std::move(other.data)}, length{std::exchange(const_cast<ptrdiff_t &>(other.length), 0)} {}
+        Array(Array &&other) noexcept : m_data{std::move(other.m_data)}, length{std::exchange(const_cast<index_type &>(other.length), 0)} {}
         //////////////////////////////////ES Method
         template <typename... Args>
-        constexpr ptrdiff_t push(Args &&...elements)
+        constexpr index_type push(T first, Args... rests)
         {
-            data.insert(data.end(), std::initializer_list<T>{std::forward<Args>(elements)...});
-            const_cast<ptrdiff_t &>(length) = data.size();
+            m_data.insert(m_data.end(), std::initializer_list<T>{first, rests...});
+            const_cast<index_type &>(length) = m_data.size();
             return length;
         }
         template <typename... Args>
-        constexpr ptrdiff_t unshift(Args &&...elements)
+        constexpr index_type unshift(T first, Args... rests)
         {
-            data.insert(data.begin(), std::initializer_list<T>{std::forward<Args>(elements)...});
-            const_cast<ptrdiff_t &>(length) = data.size();
+            m_data.insert(m_data.begin(), std::initializer_list<T>{first, rests...});
+            const_cast<index_type &>(length) = m_data.size();
             return length;
         }
         constexpr T pop()
         {
-            T back = std::move(data.back());
-            data.pop_back();
-            const_cast<ptrdiff_t &>(length) -= 1;
+            T back = std::move(m_data.back());
+            m_data.pop_back();
+            const_cast<index_type &>(length) -= 1;
             return back;
         }
         constexpr T shift()
         {
-            T front = std::move(data.front());
-            data.erase(data.begin());
-            const_cast<ptrdiff_t &>(length) -= 1;
+            T front = std::move(m_data.front());
+            m_data.erase(m_data.begin());
+            const_cast<index_type &>(length) -= 1;
             return front;
         }
-        constexpr const T &at(ptrdiff_t index) const
+        constexpr const T &at(index_type index) const
         {
             index < 0 && (index = (index + length) % length); // c++ feature: [-length, -1] % length returns itself!
-            return data.at(index);
+            return m_data.at(index);
         }
-        constexpr ptrdiff_t indexOf(const T &value, ptrdiff_t fromIndex = 0) const noexcept
+        constexpr index_type indexOf(const T &value, index_type fromIndex = 0) const noexcept
         {
             if (fromIndex >= length) [[unlikely]]
                 return -1;
             (fromIndex < 0 && fromIndex > -length) && (fromIndex += length) || fromIndex < 0 && (fromIndex = 0);
-            auto findRange = data | std::views::drop(fromIndex);
-            ptrdiff_t index = std::ranges::find(findRange, value) - findRange.begin();
+            auto findRange = m_data | std::views::drop(fromIndex);
+            index_type index = std::ranges::find(findRange, value) - findRange.begin();
             return index == findRange.size() ? -1 : fromIndex + index;
         }
-        constexpr ptrdiff_t lastIndexOf(const T &value, ptrdiff_t fromIndex = -1) const noexcept
+        constexpr index_type lastIndexOf(const T &value, index_type fromIndex = -1) const noexcept
         {
             (fromIndex < 0 && fromIndex >= -length) && (fromIndex += length) || fromIndex >= length && (fromIndex = length - 1);
             if (fromIndex < 0) [[unlikely]]
                 return -1;
-            auto findRange = data | std::views::take(fromIndex + 1) | std::views::reverse;
-            ptrdiff_t index = std::ranges::find(findRange, value) - findRange.begin();
+            auto findRange = m_data | std::views::take(fromIndex + 1) | std::views::reverse;
+            index_type index = std::ranges::find(findRange, value) - findRange.begin();
             return index == findRange.size() ? -1 : fromIndex - index;
         }
         constexpr bool includes(const T &value) const noexcept
         {
-            return std::ranges::find(data, value) != data.end();
+            return std::ranges::find(m_data, value) != m_data.end();
         }
         constexpr std::string join(const char *separator = ",", std::string (*formatter)(const T &) = to_string) const noexcept
         {
             std::string s;
-            for (ptrdiff_t i = 0; i < length; ++i)
-                s.operator+=(formatter(data[i])).operator+=((i == length - 1 ? "" : separator));
+            for (index_type i = 0; i < length; ++i)
+                s.operator+=(formatter(m_data[i])).operator+=((i == length - 1 ? "" : separator));
             return s;
         }
         template <typename ESCallback>
         constexpr void forEach(ESCallback &&callbackFn)
         {
-            std::for_each(data.begin(), data.end(), basicAdaptor<void>(std::forward<ESCallback>(callbackFn)));
+            std::for_each(m_data.begin(), m_data.end(), basicAdaptor<void>(std::forward<ESCallback>(callbackFn)));
         }
         template <typename ESCallback>
         constexpr bool some(ESCallback &&predicate)
         {
-            return std::any_of(data.begin(), data.end(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
+            return std::any_of(m_data.begin(), m_data.end(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
         }
         template <typename ESCallback>
         constexpr bool every(ESCallback &&predicate)
         {
-            return std::all_of(data.begin(), data.end(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
+            return std::all_of(m_data.begin(), m_data.end(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
         }
         template <typename ESCallback>
         constexpr any find(ESCallback &&predicate)
         {
-            auto value = std::ranges::find_if(data, basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
-            return value == data.end() ? undefined : *value;
+            auto value = std::ranges::find_if(m_data, basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
+            return value == m_data.end() ? undefined : *value;
         }
         template <typename ESCallback>
         constexpr any findLast(ESCallback &&predicate)
         {
-            auto value = std::ranges::find_if(data.rbegin(), data.rend(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
-            return value == data.rend() ? undefined : *value;
+            auto value = std::ranges::find_if(m_data.rbegin(), m_data.rend(), basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
+            return value == m_data.rend() ? undefined : *value;
         }
         template <typename ESCallback>
-        constexpr ptrdiff_t findIndex(ESCallback &&predicate)
+        constexpr index_type findIndex(ESCallback &&predicate)
         {
-            ptrdiff_t index = std::ranges::find_if(data, basicAdaptor<bool>(std::forward<ESCallback>(predicate))) - data.begin();
+            index_type index = std::ranges::find_if(m_data, basicAdaptor<bool>(std::forward<ESCallback>(predicate))) - m_data.begin();
             return index == length ? -1 : index;
         }
         template <typename ESCallback>
-        constexpr ptrdiff_t findLastIndex(ESCallback &&predicate)
+        constexpr index_type findLastIndex(ESCallback &&predicate)
         {
             return length - 1 -
                    (std::ranges::find_if(
-                        data.rbegin(),
-                        data.rend(),
+                        m_data.rbegin(),
+                        m_data.rend(),
                         basicAdaptor<bool, true>(std::forward<ESCallback>(predicate))) -
-                    data.rbegin());
+                    m_data.rbegin());
         }
         template <typename ESCallback>
         constexpr Array<T> filter(ESCallback &&predicate)
         {
-            auto filterRange = data | std::views::filter(basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
+            auto filterRange = m_data | std::views::filter(basicAdaptor<bool>(std::forward<ESCallback>(predicate)));
             return Array<T>(filterRange.begin(), filterRange.end());
         }
         template <typename U, typename ESCallback>
         constexpr Array<U> map(ESCallback &&mapFn)
         {
-            auto mapRange = data | std::views::transform(basicAdaptor<U>(std::forward<ESCallback>(mapFn)));
+            auto mapRange = m_data | std::views::transform(basicAdaptor<U>(std::forward<ESCallback>(mapFn)));
             return Array<U>(mapRange.begin(), mapRange.end());
         }
         template <typename ESCallback>
@@ -200,11 +200,11 @@ namespace CES
             if (length <= 0) [[unlikely]]
                 throw std::logic_error{"TypeError: Reduce of empty array with no initial value"};
             else if (length == 1) [[unlikely]]
-                return data[0];
+                return m_data[0];
             return std::accumulate(
-                data.begin() + 1,
-                data.end(),
-                data.front(),
+                m_data.begin() + 1,
+                m_data.end(),
+                m_data.front(),
                 reduceAdaptor<T, false>(std::forward<ESCallback>(reduceFn)));
         }
         template <typename U, typename ESCallback>
@@ -213,8 +213,8 @@ namespace CES
             if (length <= 0) [[unlikely]]
                 return std::forward<U>(initialValue);
             return std::accumulate(
-                data.begin(),
-                data.end(),
+                m_data.begin(),
+                m_data.end(),
                 std::forward<U>(initialValue),
                 reduceAdaptor<U, true>(std::forward<ESCallback>(reduceFn)));
         }
@@ -224,11 +224,11 @@ namespace CES
             if (length <= 0) [[unlikely]]
                 throw std::logic_error{"TypeError: Reduce of empty array with no initial value"};
             else if (length == 1) [[unlikely]]
-                return data[0];
+                return m_data[0];
             return std::accumulate(
-                data.rbegin() + 1,
-                data.rend(),
-                data.back(),
+                m_data.rbegin() + 1,
+                m_data.rend(),
+                m_data.back(),
                 reduceAdaptor<T, false, true>(std::forward<ESCallback>(reduceFn)));
         }
         template <typename U, typename ESCallback>
@@ -237,131 +237,127 @@ namespace CES
             if (length <= 0) [[unlikely]]
                 return std::forward<U>(initialValue);
             return std::accumulate(
-                data.rbegin(),
-                data.rend(),
+                m_data.rbegin(),
+                m_data.rend(),
                 std::forward<U>(initialValue),
                 reduceAdaptor<U, true, true>(std::forward<ESCallback>(reduceFn)));
         }
         constexpr Array<T> concat(const Array<T> &otherArray) const
         {
             Array<T> concatArray(length + otherArray.length);
-            std::copy(data.begin(), data.end(), concatArray.data.begin());
-            std::copy(otherArray.data.begin(), otherArray.data.end(), concatArray.data.begin() + length);
+            std::copy(m_data.begin(), m_data.end(), concatArray.m_data.begin());
+            std::copy(otherArray.m_data.begin(), otherArray.m_data.end(), concatArray.m_data.begin() + length);
             return concatArray;
         }
-        constexpr Array<T> &fill(const T &value, ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt)
+        constexpr Array<T> &fill(const T &value, index_type start = 0, std::optional<index_type> _end = std::nullopt) noexcept
         {
             if (start >= length) [[unlikely]]
                 return *this;
-            ptrdiff_t end = _end.value_or(length);
+            index_type end = _end.value_or(length);
             (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
             (end < 0 && end > -length) && (end += length) || end > length && (end = length);
             if (end <= start) [[unlikely]]
                 return *this;
-            std::fill_n(data.begin() + start, end - start, value);
+            std::fill_n(m_data.begin() + start, end - start, value);
             return *this;
         }
-        constexpr Array<T> slice(ptrdiff_t start = 0, std::optional<ptrdiff_t> _end = std::nullopt) const
+        constexpr Array<T> slice(index_type start = 0, std::optional<index_type> _end = std::nullopt) const
         {
             if (start >= length) [[unlikely]]
                 return {};
-            ptrdiff_t end = _end.value_or(length);
+            index_type end = _end.value_or(length);
             (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
             (end < 0 && end > -length) && (end += length) || end > length && (end = length);
             if (end <= start) [[unlikely]]
                 return {};
-            auto sliceRange = data | std::views::drop(start) | std::views::take(end - start);
+            auto sliceRange = m_data | std::views::drop(start) | std::views::take(end - start);
             return Array<T>(sliceRange.begin(), sliceRange.end());
         }
-        constexpr Array<T> &copyWithin(ptrdiff_t target, ptrdiff_t start, std::optional<ptrdiff_t> _end = std::nullopt)
+        constexpr Array<T> &copyWithin(index_type target, index_type start, std::optional<index_type> _end = std::nullopt) noexcept
         {
             if (target >= length || start >= length) [[unlikely]]
                 return *this;
-            ptrdiff_t end = _end.value_or(length);
+            index_type end = _end.value_or(length);
             (target < 0 && target > -length) && (target += length) || target < 0 && (target = 0);
             (start < 0 && start > -length) && (start += length) || start < 0 && (start = 0);
             (end < 0 && end > -length) && (end += length) || end > length && (end = length);
             if (end <= start) [[unlikely]]
                 return *this;
-            ptrdiff_t copyCount = std::min(end - start, end - target);
+            index_type copyCount = std::min(end - start, end - target);
             if (target > start)
-                std::copy_backward(data.begin() + start, data.begin() + start + copyCount, data.begin() + target + copyCount);
+                std::copy_backward(m_data.begin() + start, m_data.begin() + start + copyCount, m_data.begin() + target + copyCount);
             else
-                std::copy(data.begin() + start, data.begin() + start + copyCount, data.begin() + target);
+                std::copy(m_data.begin() + start, m_data.begin() + start + copyCount, m_data.begin() + target);
             return *this;
         }
-        constexpr Array<T> splice(ptrdiff_t start, std::optional<ptrdiff_t> _deleteCount = std::nullopt, std::initializer_list<T> newElements = {})
+        constexpr Array<T> splice(index_type start, std::optional<index_type> _deleteCount = std::nullopt, std::initializer_list<T> newElements = {})
         {
             if (start >= length) [[unlikely]]
                 return {};
             start = std::max((start + length) % length, 0LL);
-            ptrdiff_t deleteCount = std::clamp(_deleteCount.value_or(length - start), 0LL, length - start);
-            ptrdiff_t newElementsSize = (ptrdiff_t)newElements.size();
+            index_type deleteCount = std::clamp(_deleteCount.value_or(length - start), 0LL, length - start);
+            index_type newElementsSize = static_cast<index_type>(newElements.size());
             Array<T> spliceArray(deleteCount);
             if (deleteCount > 0)
             {
-                std::move(data.begin() + start, data.begin() + start + deleteCount, spliceArray.data.begin());
-                data.erase(data.begin() + start, data.begin() + start + deleteCount);
+                std::move(m_data.begin() + start, m_data.begin() + start + deleteCount, spliceArray.m_data.begin());
+                m_data.erase(m_data.begin() + start, m_data.begin() + start + deleteCount);
             }
-            data.insert(data.begin() + start, newElements);
-            const_cast<ptrdiff_t &>(length) = length - deleteCount + newElementsSize;
+            m_data.insert(m_data.begin() + start, newElements);
+            const_cast<index_type &>(length) = length - deleteCount + newElementsSize;
             return spliceArray;
         }
         constexpr Array<T> &reverse()
         {
-            std::reverse(data.begin(), data.end());
+            std::reverse(m_data.begin(), m_data.end());
             return *this;
         }
         constexpr Array<T> &sort()
         {
-            std::sort(data.begin(), data.end());
+            std::sort(m_data.begin(), m_data.end());
             return *this;
         }
         template <typename ESCallback>
         constexpr Array<T> &sort(ESCallback &&compareFn)
         {
-            std::sort(data.begin(), data.end(), [compareFn = std::forward<ESCallback>(compareFn)](const T &a, const T &b)
-                      { return compareFn(a, b) < 0; });
+            std::sort(m_data.begin(), m_data.end(), [&](const T &a, const T &b)
+                      { return std::forward<ESCallback>(compareFn)(a, b) < 0; });
             return *this;
         }
         //////////////////////////////////Operator
-        constexpr T &operator[](ptrdiff_t index)
+        constexpr T &operator[](index_type index)
         {
             if (index >= length) [[unlikely]]
             {
-                data.resize(index + 1);
-                const_cast<ptrdiff_t &>(length) = index + 1;
+                m_data.resize(index + 1);
+                const_cast<index_type &>(length) = index + 1;
             }
-            else if (index < 0) [[unlikely]]
-                index = 0;
-            return data[index];
+            return m_data[index];
         }
-        constexpr Array<T> &operator=(const Array<T> &otherArray)
+        constexpr Array<T> &operator=(std::initializer_list<T> elements)
         {
-            if (this == &otherArray) [[unlikely]]
-                return *this;
-            data = otherArray.data;
-            const_cast<ptrdiff_t &>(length) = otherArray.length;
+            if (elements.size() > std::numeric_limits<index_type>::max()) [[unlikely]]
+                throw std::overflow_error("Array length is too large!");
+            m_data.assign(elements);
+            const_cast<index_type &>(length) = static_cast<index_type>(elements.size());
             return *this;
         }
-        constexpr Array<T> &operator=(Array<T> &&otherArray)
+        constexpr Array<T> &operator=(Array<T> &&other) noexcept
         {
-            if (this == &otherArray) [[unlikely]]
+            if (this == &other) [[unlikely]]
                 return *this;
-            data = std::move(otherArray.data);
-            const_cast<ptrdiff_t &>(length) = std::exchange(const_cast<ptrdiff_t &>(otherArray.length), 0);
+            m_data = std::move(other.m_data);
+            const_cast<index_type &>(length) = std::exchange(const_cast<index_type &>(other.length), 0);
             return *this;
         }
         friend constexpr std::ostream &operator<<(std::ostream &os, const Array<T> &array)
         {
             os << "\n(" << array.length << ") [";
-            ptrdiff_t crtIndex = 0;
-            for (const T &val : array.data)
+            index_type crtIndex = 0;
+            for (const T &val : array.m_data)
                 os << val << (++crtIndex == array.length ? "" : ", ");
             os << "]\n";
             return os;
         }
     };
 } // CES
-
-#endif // _ARRAY_H_

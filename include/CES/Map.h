@@ -26,62 +26,62 @@ namespace CES
             };
         }
         //////////////////////////////////Wrapped data
-        std::map<Key, Value> data;
+        std::map<Key, Value> m_data;
 
     public:
         //////////////////////////////////ES Property
         const ptrdiff_t size{0};
         //////////////////////////////////Constructor
-        Map() : data{} {}
-        Map(std::initializer_list<std::pair<Key, Value>> list) : data(list) {}
-        Map(const Map &map) : data(map.data) {}
-        Map(Map &&map) : data(std::move(map.data)) {}
+        Map() : m_data{} {}
+        Map(std::initializer_list<std::pair<Key, Value>> list) : m_data(list) {}
+        Map(const Map &map) : m_data(map.m_data) {}
+        Map(Map &&map) : m_data(std::move(map.m_data)) {}
         //////////////////////////////////ES Method
         constexpr any get(const Key &key)
         {
-            if (data.find(key) == data.end())
+            if (m_data.find(key) == m_data.end())
                 return undefined;
-            return data.at(key);
+            return m_data.at(key);
         }
         constexpr void set(Key &&key, const Value &val)
         {
-            if (data.find(key) == data.end())
+            if (m_data.find(key) == m_data.end())
                 const_cast<ptrdiff_t &>(size) += 1;
-            data[key] = val;
+            m_data[key] = val;
         }
         constexpr bool Delete(const Key &key) // avoid using keyword 'delete' reserved in C++
         {
-            bool deleted = (data.erase(key) > 0);
+            bool deleted = (m_data.erase(key) > 0);
             const_cast<ptrdiff_t &>(size) -= deleted;
             return deleted;
         }
         constexpr void clear()
         {
-            data.clear();
+            m_data.clear();
             const_cast<ptrdiff_t &>(size) = 0;
         }
         constexpr bool has(const Key &key)
         {
-            return data.find(key) != data.end();
+            return m_data.find(key) != m_data.end();
         }
         template <typename ESCallback>
         constexpr void forEach(ESCallback &&callbackFn)
         {
-            std::for_each(data.begin(), data.end(), basicAdaptor<void>(std::forward<ESCallback>(callbackFn)));
+            std::for_each(m_data.begin(), m_data.end(), basicAdaptor<void>(std::forward<ESCallback>(callbackFn)));
         }
         constexpr Array<Key> keys()
         {
-            auto keysRange = data | std::views::keys;
+            auto keysRange = m_data | std::views::keys;
             return Array<Key>{keysRange.begin(), keysRange.end()};
         }
         constexpr Array<Value> values()
         {
-            auto valuesRange = data | std::views::values;
+            auto valuesRange = m_data | std::views::values;
             return Array<Value>{valuesRange.begin(), valuesRange.end()};
         }
         constexpr Array<std::pair<Key, Value>> entries()
         {
-            auto entriesRange = data | std::views::all;
+            auto entriesRange = m_data | std::views::all;
             return Array<std::pair<Key, Value>>{entriesRange.begin(), entriesRange.end()};
         }
         //////////////////////////////////Operator
@@ -93,7 +93,7 @@ namespace CES
             else
             {
                 ptrdiff_t crtIndex = 0;
-                for (auto &[key, value] : map.data)
+                for (auto &[key, value] : map.m_data)
                     os << key << " => " << value << (++crtIndex == map.size ? "" : ", ");
             }
             os << "}\n";
